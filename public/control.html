@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>SQUISH — Control</title>
+<style>
+  :root {
+    --bg:  #0a0a0a;
+    --fg:  #f0f0f0;
+    --dim: #555;
+    --bdr: #222;
+    --hi:  #fff;
+    --acc: #ffffff;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { width:100%; min-height:100vh; background:var(--bg); color:var(--fg); font-family:monospace; font-size:14px; overscroll-behavior:none; }
+
+  header {
+    position:sticky; top:0; z-index:10;
+    background:var(--bg); border-bottom:2px solid var(--fg);
+    padding:12px 16px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .logo { font-size:18px; letter-spacing:4px; }
+  .conn { font-size:9px; letter-spacing:2px; color:var(--dim); }
+  .conn.live { color:var(--hi); }
+
+  /* AI narration box */
+  #nar-box {
+    margin:16px; padding:14px;
+    border:2px solid var(--fg); background:#000;
+    min-height:52px; position:relative;
+  }
+  #nar-text {
+    font-size:13px; line-height:1.6; letter-spacing:0.08em;
+    color:var(--fg); min-height:22px;
+    transition:opacity 0.4s;
+  }
+  #nar-text.fade { opacity:0.3; }
+  .nar-label { font-size:8px; letter-spacing:3px; color:var(--dim); margin-bottom:6px; }
+
+  /* Live metrics row */
+  #metrics {
+    display:grid; grid-template-columns:repeat(3,1fr);
+    gap:1px; background:var(--bdr);
+    border:2px solid var(--fg); margin:0 16px 16px;
+  }
+  .metric { background:var(--bg); padding:10px 8px; text-align:center; }
+  .metric-val { font-size:22px; display:block; }
+  .metric-key { font-size:8px; letter-spacing:2px; color:var(--dim); }
+
+  /* Sections */
+  section { border-top:1px solid var(--bdr); padding:14px 16px; }
+  .section-title { font-size:9px; letter-spacing:3px; color:var(--dim); margin-bottom:14px; }
+
+  /* Sliders */
+  .row { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .row-label { font-size:12px; letter-spacing:1px; flex:1; }
+  .row-val   { font-size:12px; width:44px; text-align:right; }
+  input[type=range] {
+    -webkit-appearance:none; appearance:none;
+    width:100%; height:4px; margin:6px 0 2px;
+    background:var(--bdr); outline:none; border-radius:0;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance:none; width:22px; height:22px;
+    background:var(--fg); border-radius:0; cursor:pointer;
+  }
+  input[type=range]:active::-webkit-slider-thumb { background:var(--hi); }
+
+  /* Toggle */
+  .tog-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .tog-btn {
+    font-family:monospace; font-size:10px; letter-spacing:2px;
+    padding:8px 16px; border:2px solid var(--fg);
+    background:transparent; color:var(--dim); cursor:pointer;
+    transition:all 0.1s;
+  }
+  .tog-btn.on { background:var(--fg); color:#000; }
+
+  /* Action buttons */
+  .btn-row { display:flex; gap:8px; }
+  .btn {
+    flex:1; font-family:monospace; font-size:10px; letter-spacing:3px;
+    padding:14px 0; border:2px solid var(--fg);
+    background:transparent; color:var(--fg); cursor:pointer;
+    text-transform:uppercase; transition:all 0.1s; text-align:center;
+  }
+  .btn:active { background:var(--fg); color:#000; }
+  .btn.primary { background:var(--fg); color:#000; }
+  .btn.primary:active { background:#000; color:var(--fg); }
+
+  /* AI narrate button */
+  #btn-narrate {
+    width:calc(100% - 32px); margin:0 16px 16px;
+    display:block; font-family:monospace; font-size:11px; letter-spacing:4px;
+    padding:16px 0; border:2px solid var(--fg);
+    background:transparent; color:var(--fg); cursor:pointer;
+    text-transform:uppercase; text-align:center; transition:all 0.15s;
+  }
+  #btn-narrate:active { background:var(--fg); color:#000; }
+  #btn-narrate.loading { color:var(--dim); border-color:var(--dim); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">SQUISH</div>
+  <div class="conn" id="conn-status">CONNECTING...</div>
+</header>
+
+<!-- AI narration display -->
+<div id="nar-box">
+  <div class="nar-label">AI NARRATOR</div>
+  <div id="nar-text">—</div>
+</div>
+
+<!-- Trigger narration -->
+<button id="btn-narrate" onclick="triggerNarrate()">&#9670; GENERATE NARRATION</button>
+
+<!-- Live metrics from installation -->
+<div id="metrics">
+  <div class="metric"><span class="metric-val" id="m-hands">0</span><span class="metric-key">HANDS</span></div>
+  <div class="metric"><span class="metric-val" id="m-score">0</span><span class="metric-key">HELD</span></div>
+  <div class="metric"><span class="metric-val" id="m-speed">0</span><span class="metric-key">AVG SPD</span></div>
+</div>
+
+<!-- Physics controls -->
+<section>
+  <div class="section-title">PARTICLES</div>
+
+  <div class="row">
+    <div class="row-label">COUNT</div>
+    <div class="row-val" id="v-count">350</div>
+  </div>
+  <input type="range" id="s-count" min="50" max="800" step="10" value="350"
+    oninput="update('count', +this.value, 'v-count')">
+
+  <div class="row">
+    <div class="row-label">SIZE</div>
+    <div class="row-val" id="v-size">4</div>
+  </div>
+  <input type="range" id="s-size" min="1" max="10" step="0.5" value="4"
+    oninput="update('size', +this.value, 'v-size')">
+</section>
+
+<section>
+  <div class="section-title">PHYSICS</div>
+
+  <div class="row">
+    <div class="row-label">GRAVITY</div>
+    <div class="row-val" id="v-gravity">0.02</div>
+  </div>
+  <input type="range" id="s-gravity" min="-0.15" max="0.15" step="0.005" value="0.02"
+    oninput="update('gravity', +this.value, 'v-gravity', 3)">
+
+  <div class="row">
+    <div class="row-label">FRICTION</div>
+    <div class="row-val" id="v-friction">0.993</div>
+  </div>
+  <input type="range" id="s-friction" min="0.92" max="1.0" step="0.001" value="0.993"
+    oninput="update('friction', +this.value, 'v-friction', 3)">
+
+  <div class="row">
+    <div class="row-label">BOUNCE</div>
+    <div class="row-val" id="v-bounce">0.7</div>
+  </div>
+  <input type="range" id="s-bounce" min="0.1" max="1.0" step="0.05" value="0.7"
+    oninput="update('bounce', +this.value, 'v-bounce', 2)">
+</section>
+
+<section>
+  <div class="section-title">HAND FORCES</div>
+
+  <div class="row">
+    <div class="row-label">RADIUS</div>
+    <div class="row-val" id="v-radius">110</div>
+  </div>
+  <input type="range" id="s-radius" min="40" max="220" step="5" value="110"
+    oninput="update('radius', +this.value, 'v-radius')">
+
+  <div class="row">
+    <div class="row-label">ATTRACT STR</div>
+    <div class="row-val" id="v-attract">3.5</div>
+  </div>
+  <input type="range" id="s-attract" min="0.5" max="10" step="0.5" value="3.5"
+    oninput="update('attract', +this.value, 'v-attract', 1)">
+
+  <div class="row">
+    <div class="row-label">REPEL STR</div>
+    <div class="row-val" id="v-repel">7.0</div>
+  </div>
+  <input type="range" id="s-repel" min="1" max="16" step="0.5" value="7.0"
+    oninput="update('repel', +this.value, 'v-repel', 1)">
+</section>
+
+<section>
+  <div class="section-title">VISUALS</div>
+  <div class="tog-row">
+    <div class="row-label">MOTION TRAIL</div>
+    <button class="tog-btn on" id="tog-trail" onclick="toggleTrail(this)">ON</button>
+  </div>
+</section>
+
+<section>
+  <div class="section-title">ACTIONS</div>
+  <div class="btn-row">
+    <button class="btn primary" onclick="send({type:'reset'})">RESET</button>
+    <button class="btn" onclick="resetBest()">CLR BEST</button>
+  </div>
+</section>
+
+<div style="height:40px"></div>
+
+<script>
+// ── WebSocket ─────────────────────────────────────────────────
+let ws;
+
+function connect() {
+  // Connect to same host as this page (works on phone on local network)
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(proto + '//' + location.host);
+
+  ws.onopen = () => {
+    ws.send(JSON.stringify({ type:'identify', role:'control' }));
+    setConn(true);
+  };
+
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+
+    // Sync sliders when server sends current params
+    if (msg.type === 'params') {
+      const p = msg.params;
+      syncSlider('s-count',   'v-count',   p.count,    0);
+      syncSlider('s-size',    'v-size',    p.size,     1);
+      syncSlider('s-gravity', 'v-gravity', p.gravity,  3);
+      syncSlider('s-friction','v-friction',p.friction, 3);
+      syncSlider('s-radius',  'v-radius',  p.radius,   0);
+      syncSlider('s-attract', 'v-attract', p.attract,  1);
+      syncSlider('s-repel',   'v-repel',   p.repel,    1);
+      const tb = document.getElementById('tog-trail');
+      tb.textContent = p.trail ? 'ON' : 'OFF';
+      tb.classList.toggle('on', p.trail);
+    }
+
+    // Live metrics from installation
+    if (msg.type === 'state') {
+      const s = msg.state;
+      document.getElementById('m-hands').textContent = s.hands || 0;
+      document.getElementById('m-score').textContent = s.score || 0;
+      document.getElementById('m-speed').textContent = (s.avgSpeed||0).toFixed(1);
+    }
+
+    // AI narration came through
+    if (msg.type === 'narration') {
+      const el = document.getElementById('nar-text');
+      el.classList.add('fade');
+      setTimeout(() => { el.textContent = msg.text; el.classList.remove('fade'); }, 400);
+      const btn = document.getElementById('btn-narrate');
+      btn.classList.remove('loading');
+      btn.textContent = '◆ GENERATE NARRATION';
+    }
+  };
+
+  ws.onclose = () => { setConn(false); setTimeout(connect, 2000); };
+}
+
+function setConn(on) {
+  const el = document.getElementById('conn-status');
+  el.textContent = on ? 'LIVE' : 'OFFLINE';
+  el.classList.toggle('live', on);
+}
+
+// ── Param update ──────────────────────────────────────────────
+function update(key, value, labelId, decimals=0) {
+  const label = document.getElementById(labelId);
+  label.textContent = decimals > 0 ? value.toFixed(decimals) : value;
+  send({ type:'setParam', key, value });
+}
+
+function send(msg) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(msg));
+  }
+}
+
+function syncSlider(sliderId, labelId, value, decimals) {
+  const s = document.getElementById(sliderId);
+  const l = document.getElementById(labelId);
+  if (!s || !l) return;
+  s.value = value;
+  l.textContent = decimals > 0 ? (+value).toFixed(decimals) : value;
+}
+
+// ── Trail toggle ──────────────────────────────────────────────
+function toggleTrail(btn) {
+  const on = btn.classList.toggle('on');
+  btn.textContent = on ? 'ON' : 'OFF';
+  send({ type:'setParam', key:'trail', value:on });
+}
+
+// ── Reset best (just local, display tracks its own best) ──────
+function resetBest() { send({ type:'reset' }); }
+
+// ── Trigger AI narration ──────────────────────────────────────
+function triggerNarrate() {
+  const btn = document.getElementById('btn-narrate');
+  btn.classList.add('loading');
+  btn.textContent = '... GENERATING';
+  send({ type:'narrate' });
+}
+
+connect();
+</script>
+</body>
+</html>
