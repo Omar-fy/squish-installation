@@ -158,10 +158,4 @@ The AI narrator extends work done on a parallel installation called Echoing Shad
 
 ---
 
-## License
-
-MIT. Use it, break it, build on it.
-
----
-
 *Made as part of a semester 2 interactive media project. University of Southampton, 2025.*
