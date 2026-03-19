@@ -4,103 +4,149 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>SQUISH — Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg:  #0a0a0a;
-    --fg:  #f0f0f0;
-    --dim: #555;
-    --bdr: #222;
-    --hi:  #fff;
-    --acc: #ffffff;
+    --bg:    #f5f3ff;
+    --card:  #ffffff;
+    --fg:    #1a1a2e;
+    --dim:   #9991cc;
+    --bdr:   #e0dcf5;
+    --acc:   #6c55e8;
+    --track: #ddd9f5;
+
+    --zone-stillness:   #3070c0;
+    --zone-surge:       #c03030;
+    --zone-convergence: #7040b0;
+    --zone-void:        #666666;
   }
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html, body { width:100%; min-height:100vh; background:var(--bg); color:var(--fg); font-family:monospace; font-size:14px; overscroll-behavior:none; }
+  html, body {
+    width:100%; min-height:100vh;
+    background:var(--bg); color:var(--fg);
+    font-family:'Nunito', sans-serif; font-size:15px;
+    overscroll-behavior:none;
+  }
 
   header {
     position:sticky; top:0; z-index:10;
-    background:var(--bg); border-bottom:2px solid var(--fg);
-    padding:12px 16px;
+    background:var(--card); border-bottom:2px solid var(--bdr);
+    padding:14px 20px;
     display:flex; align-items:center; justify-content:space-between;
+    box-shadow:0 2px 12px rgba(108,85,232,0.08);
   }
-  .logo { font-size:18px; letter-spacing:4px; }
-  .conn { font-size:9px; letter-spacing:2px; color:var(--dim); }
-  .conn.live { color:var(--hi); }
+  .logo { font-size:22px; font-weight:900; letter-spacing:2px; color:var(--acc); }
+  .conn {
+    font-size:11px; font-weight:800; letter-spacing:1px;
+    padding:4px 12px; border-radius:999px;
+    background:var(--track); color:var(--dim); transition:all 0.3s;
+  }
+  .conn.live { background:#d4f7ec; color:#1a9e6e; }
 
-  /* AI narration box */
-  #nar-box {
-    margin:16px; padding:14px;
-    border:2px solid var(--fg); background:#000;
-    min-height:52px; position:relative;
+  /* Zone display card */
+  #zone-box {
+    margin:16px; padding:16px 18px;
+    background:var(--card); border-radius:18px;
+    border:2px solid var(--bdr);
+    box-shadow:0 4px 16px rgba(108,85,232,0.07);
+    transition: border-color 0.6s;
   }
-  #nar-text {
-    font-size:13px; line-height:1.6; letter-spacing:0.08em;
-    color:var(--fg); min-height:22px;
-    transition:opacity 0.4s;
+  .zone-box-label {
+    font-size:9px; font-weight:800; letter-spacing:3px;
+    color:var(--dim); margin-bottom:8px; text-transform:uppercase;
   }
-  #nar-text.fade { opacity:0.3; }
-  .nar-label { font-size:8px; letter-spacing:3px; color:var(--dim); margin-bottom:6px; }
+  #zone-name {
+    font-size:22px; font-weight:900; letter-spacing:0.05em;
+    text-transform:uppercase; transition:color 0.6s;
+    color:var(--zone-void);
+  }
+  #zone-desc-ctrl {
+    font-size:12px; font-weight:400; color:var(--dim);
+    margin-top:4px; font-style:italic;
+  }
 
-  /* Live metrics row */
+  /* Zone rule hint */
+  #zone-rule {
+    margin-top:8px; font-size:11px; font-weight:700;
+    padding:6px 12px; border-radius:8px;
+    background:var(--track); color:var(--fg);
+    transition:background 0.6s;
+  }
+
+  /* Live metrics */
   #metrics {
     display:grid; grid-template-columns:repeat(3,1fr);
-    gap:1px; background:var(--bdr);
-    border:2px solid var(--fg); margin:0 16px 16px;
+    gap:10px; margin:0 16px 16px;
   }
-  .metric { background:var(--bg); padding:10px 8px; text-align:center; }
-  .metric-val { font-size:22px; display:block; }
-  .metric-key { font-size:8px; letter-spacing:2px; color:var(--dim); }
+  .metric {
+    background:var(--card); border-radius:16px;
+    border:2px solid var(--bdr); padding:12px 8px; text-align:center;
+    box-shadow:0 2px 8px rgba(108,85,232,0.06);
+  }
+  .metric-val { font-size:26px; font-weight:900; display:block; color:var(--acc); }
+  .metric-key { font-size:8px; font-weight:800; letter-spacing:2px; color:var(--dim); text-transform:uppercase; }
+
+  /* Classify button */
+  #btn-classify {
+    width:calc(100% - 32px); margin:0 16px 16px; display:block;
+    font-family:'Nunito', sans-serif; font-size:13px; font-weight:900;
+    letter-spacing:2px; padding:16px 0; border:none; border-radius:16px;
+    background:linear-gradient(135deg, var(--acc), #b060e0);
+    color:#fff; cursor:pointer; text-transform:uppercase;
+    text-align:center; transition:all 0.15s;
+    box-shadow:0 4px 18px rgba(108,85,232,0.3);
+  }
+  #btn-classify:active { transform:scale(0.97); box-shadow:none; }
+  #btn-classify.loading { background:var(--track); color:var(--dim); box-shadow:none; }
 
   /* Sections */
-  section { border-top:1px solid var(--bdr); padding:14px 16px; }
-  .section-title { font-size:9px; letter-spacing:3px; color:var(--dim); margin-bottom:14px; }
+  section {
+    margin:0 16px 12px; background:var(--card); border-radius:18px;
+    border:2px solid var(--bdr); padding:16px;
+    box-shadow:0 2px 8px rgba(108,85,232,0.05);
+  }
+  .section-title {
+    font-size:9px; font-weight:800; letter-spacing:3px;
+    color:var(--dim); text-transform:uppercase; margin-bottom:14px;
+  }
 
-  /* Sliders */
-  .row { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
-  .row-label { font-size:12px; letter-spacing:1px; flex:1; }
-  .row-val   { font-size:12px; width:44px; text-align:right; }
+  .slider-wrap { margin-bottom:14px; }
+  .row { display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; }
+  .row-label { font-size:13px; font-weight:700; flex:1; }
+  .row-val { font-size:13px; font-weight:900; width:48px; text-align:right; color:var(--acc); }
   input[type=range] {
     -webkit-appearance:none; appearance:none;
-    width:100%; height:4px; margin:6px 0 2px;
-    background:var(--bdr); outline:none; border-radius:0;
+    width:100%; height:6px; margin-top:4px;
+    background:var(--track); outline:none; border-radius:999px;
   }
   input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance:none; width:22px; height:22px;
-    background:var(--fg); border-radius:0; cursor:pointer;
+    -webkit-appearance:none; width:26px; height:26px;
+    background:var(--acc); border-radius:50%; cursor:pointer;
+    border:3px solid #fff; box-shadow:0 2px 8px rgba(108,85,232,0.35);
+    transition:transform 0.1s;
   }
-  input[type=range]:active::-webkit-slider-thumb { background:var(--hi); }
+  input[type=range]:active::-webkit-slider-thumb { transform:scale(1.2); }
 
-  /* Toggle */
-  .tog-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .tog-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; }
   .tog-btn {
-    font-family:monospace; font-size:10px; letter-spacing:2px;
-    padding:8px 16px; border:2px solid var(--fg);
-    background:transparent; color:var(--dim); cursor:pointer;
-    transition:all 0.1s;
+    font-family:'Nunito', sans-serif; font-size:11px; font-weight:900;
+    letter-spacing:1px; padding:8px 20px; border:2px solid var(--bdr);
+    border-radius:999px; background:var(--track); color:var(--dim); cursor:pointer;
+    transition:all 0.15s;
   }
-  .tog-btn.on { background:var(--fg); color:#000; }
+  .tog-btn.on { background:var(--acc); color:#fff; border-color:var(--acc); box-shadow:0 2px 10px rgba(108,85,232,0.3); }
 
-  /* Action buttons */
-  .btn-row { display:flex; gap:8px; }
+  .btn-row { display:flex; gap:10px; }
   .btn {
-    flex:1; font-family:monospace; font-size:10px; letter-spacing:3px;
-    padding:14px 0; border:2px solid var(--fg);
-    background:transparent; color:var(--fg); cursor:pointer;
+    flex:1; font-family:'Nunito', sans-serif; font-size:12px; font-weight:900;
+    letter-spacing:1px; padding:14px 0;
+    border:2px solid var(--bdr); border-radius:14px;
+    background:var(--track); color:var(--fg); cursor:pointer;
     text-transform:uppercase; transition:all 0.1s; text-align:center;
   }
-  .btn:active { background:var(--fg); color:#000; }
-  .btn.primary { background:var(--fg); color:#000; }
-  .btn.primary:active { background:#000; color:var(--fg); }
-
-  /* AI narrate button */
-  #btn-narrate {
-    width:calc(100% - 32px); margin:0 16px 16px;
-    display:block; font-family:monospace; font-size:11px; letter-spacing:4px;
-    padding:16px 0; border:2px solid var(--fg);
-    background:transparent; color:var(--fg); cursor:pointer;
-    text-transform:uppercase; text-align:center; transition:all 0.15s;
-  }
-  #btn-narrate:active { background:var(--fg); color:#000; }
-  #btn-narrate.loading { color:var(--dim); border-color:var(--dim); }
+  .btn:active { transform:scale(0.96); }
+  .btn.primary { background:var(--fg); color:#fff; border-color:var(--fg); box-shadow:0 3px 12px rgba(26,26,46,0.2); }
 </style>
 </head>
 <body>
@@ -110,129 +156,123 @@
   <div class="conn" id="conn-status">CONNECTING...</div>
 </header>
 
-<!-- AI narration display -->
-<div id="nar-box">
-  <div class="nar-label">AI NARRATOR</div>
-  <div id="nar-text">—</div>
+<!-- Zone display -->
+<div id="zone-box">
+  <div class="zone-box-label">Active Zone</div>
+  <div id="zone-name">VOID</div>
+  <div id="zone-desc-ctrl">no presence, field drifts alone</div>
+  <div id="zone-rule">Field acting alone</div>
 </div>
 
-<!-- Trigger narration -->
-<button id="btn-narrate" onclick="triggerNarrate()">&#9670; GENERATE NARRATION</button>
+<!-- Classify button -->
+<button id="btn-classify" onclick="triggerClassify()">&#9670; Classify Zone Now</button>
 
-<!-- Live metrics from installation -->
+<!-- Live metrics -->
 <div id="metrics">
-  <div class="metric"><span class="metric-val" id="m-hands">0</span><span class="metric-key">HANDS</span></div>
-  <div class="metric"><span class="metric-val" id="m-score">0</span><span class="metric-key">HELD</span></div>
-  <div class="metric"><span class="metric-val" id="m-speed">0</span><span class="metric-key">AVG SPD</span></div>
+  <div class="metric"><span class="metric-val" id="m-hands">0</span><span class="metric-key">Hands</span></div>
+  <div class="metric"><span class="metric-val" id="m-score">0</span><span class="metric-key">Held</span></div>
+  <div class="metric"><span class="metric-val" id="m-speed">0</span><span class="metric-key">Avg Spd</span></div>
 </div>
 
 <!-- Physics controls -->
 <section>
-  <div class="section-title">PARTICLES</div>
-
-  <div class="row">
-    <div class="row-label">COUNT</div>
-    <div class="row-val" id="v-count">350</div>
+  <div class="section-title">Particles</div>
+  <div class="slider-wrap">
+    <div class="row"><div class="row-label">Count</div><div class="row-val" id="v-count">350</div></div>
+    <input type="range" id="s-count" min="50" max="800" step="10" value="350"
+      oninput="update('count',+this.value,'v-count')">
   </div>
-  <input type="range" id="s-count" min="50" max="800" step="10" value="350"
-    oninput="update('count', +this.value, 'v-count')">
-
-  <div class="row">
-    <div class="row-label">SIZE</div>
-    <div class="row-val" id="v-size">4</div>
+  <div class="slider-wrap">
+    <div class="row"><div class="row-label">Size</div><div class="row-val" id="v-size">4</div></div>
+    <input type="range" id="s-size" min="1" max="10" step="0.5" value="4"
+      oninput="update('size',+this.value,'v-size')">
   </div>
-  <input type="range" id="s-size" min="1" max="10" step="0.5" value="4"
-    oninput="update('size', +this.value, 'v-size')">
 </section>
 
 <section>
-  <div class="section-title">PHYSICS</div>
-
-  <div class="row">
-    <div class="row-label">GRAVITY</div>
-    <div class="row-val" id="v-gravity">0.02</div>
+  <div class="section-title">Physics</div>
+  <div class="slider-wrap">
+    <div class="row"><div class="row-label">Gravity</div><div class="row-val" id="v-gravity">0.02</div></div>
+    <input type="range" id="s-gravity" min="-0.15" max="0.15" step="0.005" value="0.02"
+      oninput="update('gravity',+this.value,'v-gravity',3)">
   </div>
-  <input type="range" id="s-gravity" min="-0.15" max="0.15" step="0.005" value="0.02"
-    oninput="update('gravity', +this.value, 'v-gravity', 3)">
-
-  <div class="row">
-    <div class="row-label">FRICTION</div>
-    <div class="row-val" id="v-friction">0.993</div>
+  <div class="slider-wrap">
+    <div class="row"><div class="row-label">Friction</div><div class="row-val" id="v-friction">0.993</div></div>
+    <input type="range" id="s-friction" min="0.92" max="1.0" step="0.001" value="0.993"
+      oninput="update('friction',+this.value,'v-friction',3)">
   </div>
-  <input type="range" id="s-friction" min="0.92" max="1.0" step="0.001" value="0.993"
-    oninput="update('friction', +this.value, 'v-friction', 3)">
-
-  <div class="row">
-    <div class="row-label">BOUNCE</div>
-    <div class="row-val" id="v-bounce">0.7</div>
+  <div class="slider-wrap">
+    <div class="row"><div class="row-label">Bounce</div><div class="row-val" id="v-bounce">0.7</div></div>
+    <input type="range" id="s-bounce" min="0.1" max="1.0" step="0.05" value="0.7"
+      oninput="update('bounce',+this.value,'v-bounce',2)">
   </div>
-  <input type="range" id="s-bounce" min="0.1" max="1.0" step="0.05" value="0.7"
-    oninput="update('bounce', +this.value, 'v-bounce', 2)">
 </section>
 
 <section>
-  <div class="section-title">HAND FORCES</div>
-
-  <div class="row">
-    <div class="row-label">RADIUS</div>
-    <div class="row-val" id="v-radius">110</div>
+  <div class="section-title">Hand Forces</div>
+  <div class="slider-wrap">
+    <div class="row"><div class="row-label">Radius</div><div class="row-val" id="v-radius">110</div></div>
+    <input type="range" id="s-radius" min="40" max="220" step="5" value="110"
+      oninput="update('radius',+this.value,'v-radius')">
   </div>
-  <input type="range" id="s-radius" min="40" max="220" step="5" value="110"
-    oninput="update('radius', +this.value, 'v-radius')">
-
-  <div class="row">
-    <div class="row-label">ATTRACT STR</div>
-    <div class="row-val" id="v-attract">3.5</div>
+  <div class="slider-wrap">
+    <div class="row"><div class="row-label">Attract</div><div class="row-val" id="v-attract">3.5</div></div>
+    <input type="range" id="s-attract" min="0.5" max="10" step="0.5" value="3.5"
+      oninput="update('attract',+this.value,'v-attract',1)">
   </div>
-  <input type="range" id="s-attract" min="0.5" max="10" step="0.5" value="3.5"
-    oninput="update('attract', +this.value, 'v-attract', 1)">
-
-  <div class="row">
-    <div class="row-label">REPEL STR</div>
-    <div class="row-val" id="v-repel">7.0</div>
+  <div class="slider-wrap">
+    <div class="row"><div class="row-label">Repel</div><div class="row-val" id="v-repel">7.0</div></div>
+    <input type="range" id="s-repel" min="1" max="16" step="0.5" value="7.0"
+      oninput="update('repel',+this.value,'v-repel',1)">
   </div>
-  <input type="range" id="s-repel" min="1" max="16" step="0.5" value="7.0"
-    oninput="update('repel', +this.value, 'v-repel', 1)">
 </section>
 
 <section>
-  <div class="section-title">VISUALS</div>
+  <div class="section-title">Visuals</div>
   <div class="tog-row">
-    <div class="row-label">MOTION TRAIL</div>
+    <div class="row-label">Motion Trail</div>
     <button class="tog-btn on" id="tog-trail" onclick="toggleTrail(this)">ON</button>
   </div>
 </section>
 
 <section>
-  <div class="section-title">ACTIONS</div>
+  <div class="section-title">Actions</div>
   <div class="btn-row">
-    <button class="btn primary" onclick="send({type:'reset'})">RESET</button>
-    <button class="btn" onclick="resetBest()">CLR BEST</button>
+    <button class="btn primary" onclick="send({type:'reset'})">Reset</button>
+    <button class="btn" onclick="send({type:'reset'})">Clear Best</button>
   </div>
 </section>
 
 <div style="height:40px"></div>
 
 <script>
-// ── WebSocket ─────────────────────────────────────────────────
+// Zone colours for controller display
+const ZONE_COLS = {
+  stillness:   '#3070c0',
+  surge:       '#c03030',
+  convergence: '#7040b0',
+  void:        '#888888'
+};
+const ZONE_RULES = {
+  stillness:   'Fist disabled — hold still only',
+  surge:       'Repel doubled — scatter freely',
+  convergence: 'Stay within 220px of each other',
+  void:        'Field acting alone'
+};
+
 let ws;
-
 function connect() {
-  // Connect to same host as this page (works on phone on local network)
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  ws = new WebSocket(proto + '//' + location.host);
-
+  const proto = location.protocol==='https:'?'wss:':'ws:';
+  ws = new WebSocket(proto+'//'+location.host);
   ws.onopen = () => {
-    ws.send(JSON.stringify({ type:'identify', role:'control' }));
+    ws.send(JSON.stringify({type:'identify',role:'control'}));
     setConn(true);
   };
-
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
 
-    // Sync sliders when server sends current params
-    if (msg.type === 'params') {
-      const p = msg.params;
+    if (msg.type==='params') {
+      const p=msg.params;
       syncSlider('s-count',   'v-count',   p.count,    0);
       syncSlider('s-size',    'v-size',    p.size,     1);
       syncSlider('s-gravity', 'v-gravity', p.gravity,  3);
@@ -240,76 +280,69 @@ function connect() {
       syncSlider('s-radius',  'v-radius',  p.radius,   0);
       syncSlider('s-attract', 'v-attract', p.attract,  1);
       syncSlider('s-repel',   'v-repel',   p.repel,    1);
-      const tb = document.getElementById('tog-trail');
-      tb.textContent = p.trail ? 'ON' : 'OFF';
-      tb.classList.toggle('on', p.trail);
+      const tb=document.getElementById('tog-trail');
+      tb.textContent=p.trail?'ON':'OFF';
+      tb.classList.toggle('on',p.trail);
     }
 
-    // Live metrics from installation
-    if (msg.type === 'state') {
-      const s = msg.state;
-      document.getElementById('m-hands').textContent = s.hands || 0;
-      document.getElementById('m-score').textContent = s.score || 0;
+    if (msg.type==='state') {
+      const s=msg.state;
+      document.getElementById('m-hands').textContent = s.hands||0;
+      document.getElementById('m-score').textContent = s.score||0;
       document.getElementById('m-speed').textContent = (s.avgSpeed||0).toFixed(1);
     }
 
-    // AI narration came through
-    if (msg.type === 'narration') {
-      const el = document.getElementById('nar-text');
-      el.classList.add('fade');
-      setTimeout(() => { el.textContent = msg.text; el.classList.remove('fade'); }, 400);
-      const btn = document.getElementById('btn-narrate');
+    if (msg.type==='zone') {
+      const col  = ZONE_COLS[msg.zone]  || '#888';
+      const rule = ZONE_RULES[msg.zone] || '';
+      document.getElementById('zone-name').textContent     = (msg.label||msg.zone).toUpperCase();
+      document.getElementById('zone-name').style.color     = col;
+      document.getElementById('zone-desc-ctrl').textContent = msg.description||'';
+      document.getElementById('zone-rule').textContent      = rule;
+      document.getElementById('zone-box').style.borderColor = col;
+
+      const btn=document.getElementById('btn-classify');
       btn.classList.remove('loading');
-      btn.textContent = '◆ GENERATE NARRATION';
+      btn.textContent='◆ Classify Zone Now';
     }
   };
-
   ws.onclose = () => { setConn(false); setTimeout(connect, 2000); };
 }
 
 function setConn(on) {
-  const el = document.getElementById('conn-status');
-  el.textContent = on ? 'LIVE' : 'OFFLINE';
-  el.classList.toggle('live', on);
+  const el=document.getElementById('conn-status');
+  el.textContent=on?'LIVE':'OFFLINE';
+  el.classList.toggle('live',on);
 }
 
-// ── Param update ──────────────────────────────────────────────
-function update(key, value, labelId, decimals=0) {
-  const label = document.getElementById(labelId);
-  label.textContent = decimals > 0 ? value.toFixed(decimals) : value;
-  send({ type:'setParam', key, value });
+function update(key,value,labelId,decimals=0) {
+  document.getElementById(labelId).textContent=decimals>0?value.toFixed(decimals):value;
+  send({type:'setParam',key,value});
 }
 
 function send(msg) {
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(msg));
-  }
+  if (ws&&ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify(msg));
 }
 
-function syncSlider(sliderId, labelId, value, decimals) {
-  const s = document.getElementById(sliderId);
-  const l = document.getElementById(labelId);
-  if (!s || !l) return;
-  s.value = value;
-  l.textContent = decimals > 0 ? (+value).toFixed(decimals) : value;
+function syncSlider(sliderId,labelId,value,decimals) {
+  const s=document.getElementById(sliderId);
+  const l=document.getElementById(labelId);
+  if (!s||!l) return;
+  s.value=value;
+  l.textContent=decimals>0?(+value).toFixed(decimals):value;
 }
 
-// ── Trail toggle ──────────────────────────────────────────────
 function toggleTrail(btn) {
-  const on = btn.classList.toggle('on');
-  btn.textContent = on ? 'ON' : 'OFF';
-  send({ type:'setParam', key:'trail', value:on });
+  const on=btn.classList.toggle('on');
+  btn.textContent=on?'ON':'OFF';
+  send({type:'setParam',key:'trail',value:on});
 }
 
-// ── Reset best (just local, display tracks its own best) ──────
-function resetBest() { send({ type:'reset' }); }
-
-// ── Trigger AI narration ──────────────────────────────────────
-function triggerNarrate() {
-  const btn = document.getElementById('btn-narrate');
+function triggerClassify() {
+  const btn=document.getElementById('btn-classify');
   btn.classList.add('loading');
-  btn.textContent = '... GENERATING';
-  send({ type:'narrate' });
+  btn.textContent='... classifying';
+  send({type:'classify'});
 }
 
 connect();
