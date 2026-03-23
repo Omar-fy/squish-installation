@@ -5,273 +5,340 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>SQUISH — Control</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg:    #f5f3ff;
-    --card:  #ffffff;
-    --fg:    #1a1a2e;
-    --dim:   #9991cc;
-    --bdr:   #e0dcf5;
-    --acc:   #6c55e8;
-    --track: #ddd9f5;
+    --bg:    #1a1025;
+    --card:  #221432;
+    --fg:    #e8d5a3;
+    --dim:   #a08860;
+    --bdr:   #4a3a20;
+    --acc:   #e8d5a3;
+    --hi:    #ffe8b0;
+    --shadow:#0d0820;
 
-    --zone-stillness:   #3070c0;
-    --zone-surge:       #c03030;
-    --zone-convergence: #7040b0;
-    --zone-void:        #666666;
+    --zone-stillness:   #7ab4e8;
+    --zone-surge:       #e8786a;
+    --zone-convergence: #c09ae8;
+    --zone-void:        #a09ab0;
   }
-  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; image-rendering:pixelated; }
+
   html, body {
     width:100%; min-height:100vh;
     background:var(--bg); color:var(--fg);
-    font-family:'Nunito', sans-serif; font-size:15px;
+    font-family:'Press Start 2P', monospace;
+    font-size:8px; line-height:1.8;
     overscroll-behavior:none;
   }
 
+  /* CRT scanline */
+  body::after {
+    content:''; position:fixed; inset:0;
+    background:repeating-linear-gradient(
+      0deg,transparent,transparent 2px,
+      rgba(0,0,0,0.10) 2px,rgba(0,0,0,0.10) 4px
+    );
+    pointer-events:none; z-index:999;
+  }
+
+  /* PS1 pixel box mixin — used everywhere */
+  .px-box {
+    background:var(--card);
+    border:2px solid var(--fg);
+    box-shadow:inset 0 0 0 1px var(--bdr), 3px 3px 0 var(--shadow);
+    position:relative;
+  }
+
+  /* Header */
   header {
     position:sticky; top:0; z-index:10;
-    background:var(--card); border-bottom:2px solid var(--bdr);
-    padding:14px 20px;
+    background:var(--bg);
+    border-bottom:2px solid var(--fg);
+    box-shadow:0 2px 0 var(--shadow);
+    padding:12px 16px;
     display:flex; align-items:center; justify-content:space-between;
-    box-shadow:0 2px 12px rgba(108,85,232,0.08);
   }
-  .logo { font-size:22px; font-weight:900; letter-spacing:2px; color:var(--acc); }
+  .logo {
+    font-size:14px; letter-spacing:2px; color:var(--hi);
+    text-shadow:2px 2px 0 var(--shadow);
+  }
+  .logo span { color:var(--dim); font-size:10px; display:block; margin-top:2px; letter-spacing:1px; }
   .conn {
-    font-size:11px; font-weight:800; letter-spacing:1px;
-    padding:4px 12px; border-radius:999px;
-    background:var(--track); color:var(--dim); transition:all 0.3s;
-  }
-  .conn.live { background:#d4f7ec; color:#1a9e6e; }
-
-  /* Zone display card */
-  #zone-box {
-    margin:16px; padding:16px 18px;
-    background:var(--card); border-radius:18px;
+    font-size:6px; letter-spacing:1px;
+    padding:5px 10px;
+    background:var(--card);
     border:2px solid var(--bdr);
-    box-shadow:0 4px 16px rgba(108,85,232,0.07);
-    transition: border-color 0.6s;
+    box-shadow:2px 2px 0 var(--shadow);
+    color:var(--dim);
+    transition:color 0.2s, border-color 0.2s;
+  }
+  .conn.live { color:#7ae8a0; border-color:#3a7a50; }
+
+  /* Zone box */
+  #zone-box {
+    margin:12px; padding:14px;
+    transition:border-color 0.4s;
   }
   .zone-box-label {
-    font-size:9px; font-weight:800; letter-spacing:3px;
-    color:var(--dim); margin-bottom:8px; text-transform:uppercase;
+    font-size:6px; letter-spacing:2px;
+    color:var(--dim); margin-bottom:8px;
   }
   #zone-name {
-    font-size:22px; font-weight:900; letter-spacing:0.05em;
-    text-transform:uppercase; transition:color 0.6s;
+    font-size:14px; letter-spacing:1px;
     color:var(--zone-void);
+    transition:color 0.4s;
+    text-shadow:2px 2px 0 var(--shadow);
+    line-height:1.4;
   }
   #zone-desc-ctrl {
-    font-size:12px; font-weight:400; color:var(--dim);
-    margin-top:4px; font-style:italic;
+    font-size:6px; color:var(--dim);
+    margin-top:6px; line-height:1.8;
   }
-
-  /* Zone rule hint */
   #zone-rule {
-    margin-top:8px; font-size:11px; font-weight:700;
-    padding:6px 12px; border-radius:8px;
-    background:var(--track); color:var(--fg);
-    transition:background 0.6s;
+    margin-top:8px; font-size:7px;
+    padding:8px 10px; line-height:1.6;
+    background:var(--bg);
+    border:2px solid var(--bdr);
+    box-shadow:2px 2px 0 var(--shadow);
+    color:var(--fg);
   }
 
-  /* Live metrics */
+  /* Metrics */
   #metrics {
     display:grid; grid-template-columns:repeat(3,1fr);
-    gap:10px; margin:0 16px 16px;
+    gap:8px; margin:0 12px 12px;
   }
   .metric {
-    background:var(--card); border-radius:16px;
-    border:2px solid var(--bdr); padding:12px 8px; text-align:center;
-    box-shadow:0 2px 8px rgba(108,85,232,0.06);
+    padding:10px 6px; text-align:center;
   }
-  .metric-val { font-size:26px; font-weight:900; display:block; color:var(--acc); }
-  .metric-key { font-size:8px; font-weight:800; letter-spacing:2px; color:var(--dim); text-transform:uppercase; }
-
-  /* Classify button */
-  #btn-classify {
-    width:calc(100% - 32px); margin:0 16px 16px; display:block;
-    font-family:'Nunito', sans-serif; font-size:13px; font-weight:900;
-    letter-spacing:2px; padding:16px 0; border:none; border-radius:16px;
-    background:linear-gradient(135deg, var(--acc), #b060e0);
-    color:#fff; cursor:pointer; text-transform:uppercase;
-    text-align:center; transition:all 0.15s;
-    box-shadow:0 4px 18px rgba(108,85,232,0.3);
+  .metric-val {
+    font-size:20px; display:block;
+    color:var(--hi); line-height:1.2;
+    text-shadow:2px 2px 0 var(--shadow);
   }
-  #btn-classify:active { transform:scale(0.97); box-shadow:none; }
-  #btn-classify.loading { background:var(--track); color:var(--dim); box-shadow:none; }
+  .metric-key {
+    font-size:5px; letter-spacing:1px;
+    color:var(--dim); margin-top:4px; display:block;
+  }
 
   /* Sections */
   section {
-    margin:0 16px 12px; background:var(--card); border-radius:18px;
-    border:2px solid var(--bdr); padding:16px;
-    box-shadow:0 2px 8px rgba(108,85,232,0.05);
+    margin:0 12px 10px; padding:14px;
   }
   .section-title {
-    font-size:9px; font-weight:800; letter-spacing:3px;
-    color:var(--dim); text-transform:uppercase; margin-bottom:14px;
+    font-size:6px; letter-spacing:2px;
+    color:var(--dim); margin-bottom:12px;
+    padding-bottom:6px;
+    border-bottom:1px solid var(--bdr);
   }
 
+  /* Sliders */
   .slider-wrap { margin-bottom:14px; }
-  .row { display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; }
-  .row-label { font-size:13px; font-weight:700; flex:1; }
-  .row-val { font-size:13px; font-weight:900; width:48px; text-align:right; color:var(--acc); }
+  .row { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+  .row-label { font-size:7px; letter-spacing:0px; flex:1; line-height:1.4; }
+  .row-val { font-size:8px; min-width:44px; text-align:right; color:var(--hi); }
+
   input[type=range] {
     -webkit-appearance:none; appearance:none;
-    width:100%; height:6px; margin-top:4px;
-    background:var(--track); outline:none; border-radius:999px;
+    width:100%; height:8px; margin-top:4px;
+    background:var(--bg);
+    border:2px solid var(--bdr);
+    outline:none;
   }
   input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance:none; width:26px; height:26px;
-    background:var(--acc); border-radius:50%; cursor:pointer;
-    border:3px solid #fff; box-shadow:0 2px 8px rgba(108,85,232,0.35);
-    transition:transform 0.1s;
+    -webkit-appearance:none;
+    width:20px; height:20px;
+    background:var(--fg);
+    border:2px solid var(--hi);
+    box-shadow:2px 2px 0 var(--shadow);
+    cursor:pointer;
+    /* Square thumb — PS1 style */
+    border-radius:0;
   }
-  input[type=range]:active::-webkit-slider-thumb { transform:scale(1.2); }
+  input[type=range]:active::-webkit-slider-thumb {
+    transform:translate(1px,1px);
+    box-shadow:1px 1px 0 var(--shadow);
+  }
 
-  .tog-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; }
+  /* Toggle */
+  .tog-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
   .tog-btn {
-    font-family:'Nunito', sans-serif; font-size:11px; font-weight:900;
-    letter-spacing:1px; padding:8px 20px; border:2px solid var(--bdr);
-    border-radius:999px; background:var(--track); color:var(--dim); cursor:pointer;
-    transition:all 0.15s;
+    font-family:'Press Start 2P', monospace;
+    font-size:7px; letter-spacing:1px;
+    padding:7px 14px;
+    background:var(--card); color:var(--dim);
+    border:2px solid var(--bdr);
+    box-shadow:3px 3px 0 var(--shadow);
+    cursor:pointer; transition:all 0.08s;
   }
-  .tog-btn.on { background:var(--acc); color:#fff; border-color:var(--acc); box-shadow:0 2px 10px rgba(108,85,232,0.3); }
+  .tog-btn.on {
+    background:var(--fg); color:var(--shadow);
+    border-color:var(--hi);
+    box-shadow:3px 3px 0 var(--shadow);
+  }
+  .tog-btn:active { transform:translate(2px,2px); box-shadow:1px 1px 0 var(--shadow); }
 
-  .btn-row { display:flex; gap:10px; }
+  /* Action buttons */
+  .btn-row { display:flex; gap:8px; }
   .btn {
-    flex:1; font-family:'Nunito', sans-serif; font-size:12px; font-weight:900;
-    letter-spacing:1px; padding:14px 0;
-    border:2px solid var(--bdr); border-radius:14px;
-    background:var(--track); color:var(--fg); cursor:pointer;
-    text-transform:uppercase; transition:all 0.1s; text-align:center;
+    flex:1;
+    font-family:'Press Start 2P', monospace;
+    font-size:7px; letter-spacing:0px;
+    padding:12px 4px;
+    background:var(--card); color:var(--fg);
+    border:2px solid var(--bdr);
+    box-shadow:3px 3px 0 var(--shadow);
+    cursor:pointer; text-transform:uppercase;
+    text-align:center; transition:all 0.08s;
+    line-height:1.4;
   }
-  .btn:active { transform:scale(0.96); }
-  .btn.primary { background:var(--fg); color:#fff; border-color:var(--fg); box-shadow:0 3px 12px rgba(26,26,46,0.2); }
+  .btn:active { transform:translate(2px,2px); box-shadow:1px 1px 0 var(--shadow); }
+  .btn.primary {
+    background:var(--fg); color:var(--shadow);
+    border-color:var(--hi);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background:var(--bg); }
+  ::-webkit-scrollbar-thumb { background:var(--bdr); }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="logo">SQUISH</div>
-  <div class="conn" id="conn-status">CONNECTING...</div>
+  <div class="logo">SQUISH<span>CONTROL PAD</span></div>
+  <div class="conn" id="conn-status">• OFFLINE</div>
 </header>
 
 <!-- Zone display -->
-<div id="zone-box">
-  <div class="zone-box-label">Active Zone</div>
+<div id="zone-box" class="px-box">
+  <div class="zone-box-label">&gt; ACTIVE ZONE</div>
   <div id="zone-name">VOID</div>
-  <div id="zone-desc-ctrl">no presence, field drifts alone</div>
-  <div id="zone-rule">Field acting alone</div>
+  <div id="zone-desc-ctrl">no presence detected</div>
+  <div id="zone-rule">field acting alone</div>
 </div>
 
-<!-- Classify button -->
-<button id="btn-classify" onclick="triggerClassify()">&#9670; Classify Zone Now</button>
+<!-- Combo display -->
+<div id="combo-box" class="px-box" style="margin:0 12px 12px;padding:12px 14px;">
+  <div class="zone-box-label">&gt; LAST COMBO</div>
+  <div id="combo-name" style="font-size:11px;letter-spacing:1px;color:var(--dim);">none yet</div>
+</div>
 
 <!-- Live metrics -->
 <div id="metrics">
-  <div class="metric"><span class="metric-val" id="m-hands">0</span><span class="metric-key">Hands</span></div>
-  <div class="metric"><span class="metric-val" id="m-score">0</span><span class="metric-key">Held</span></div>
-  <div class="metric"><span class="metric-val" id="m-speed">0</span><span class="metric-key">Avg Spd</span></div>
+  <div class="metric px-box">
+    <span class="metric-val" id="m-hands">0</span>
+    <span class="metric-key">HANDS</span>
+  </div>
+  <div class="metric px-box">
+    <span class="metric-val" id="m-score">0</span>
+    <span class="metric-key">HELD</span>
+  </div>
+  <div class="metric px-box">
+    <span class="metric-val" id="m-speed">0</span>
+    <span class="metric-key">SPD</span>
+  </div>
 </div>
 
 <!-- Physics controls -->
-<section>
-  <div class="section-title">Particles</div>
+<section class="px-box">
+  <div class="section-title">&gt;&gt; PARTICLES</div>
   <div class="slider-wrap">
-    <div class="row"><div class="row-label">Count</div><div class="row-val" id="v-count">350</div></div>
-    <input type="range" id="s-count" min="50" max="800" step="10" value="350"
+    <div class="row"><div class="row-label">COUNT</div><div class="row-val" id="v-count">200</div></div>
+    <input type="range" id="s-count" min="50" max="600" step="10" value="200"
       oninput="update('count',+this.value,'v-count')">
   </div>
   <div class="slider-wrap">
-    <div class="row"><div class="row-label">Size</div><div class="row-val" id="v-size">4</div></div>
+    <div class="row"><div class="row-label">SIZE</div><div class="row-val" id="v-size">4</div></div>
     <input type="range" id="s-size" min="1" max="10" step="0.5" value="4"
       oninput="update('size',+this.value,'v-size')">
   </div>
 </section>
 
-<section>
-  <div class="section-title">Physics</div>
+<section class="px-box">
+  <div class="section-title">&gt;&gt; PHYSICS</div>
   <div class="slider-wrap">
-    <div class="row"><div class="row-label">Gravity</div><div class="row-val" id="v-gravity">0.02</div></div>
+    <div class="row"><div class="row-label">GRAVITY</div><div class="row-val" id="v-gravity">0.02</div></div>
     <input type="range" id="s-gravity" min="-0.15" max="0.15" step="0.005" value="0.02"
       oninput="update('gravity',+this.value,'v-gravity',3)">
   </div>
   <div class="slider-wrap">
-    <div class="row"><div class="row-label">Friction</div><div class="row-val" id="v-friction">0.993</div></div>
+    <div class="row"><div class="row-label">FRICTION</div><div class="row-val" id="v-friction">0.993</div></div>
     <input type="range" id="s-friction" min="0.92" max="1.0" step="0.001" value="0.993"
       oninput="update('friction',+this.value,'v-friction',3)">
   </div>
   <div class="slider-wrap">
-    <div class="row"><div class="row-label">Bounce</div><div class="row-val" id="v-bounce">0.7</div></div>
+    <div class="row"><div class="row-label">BOUNCE</div><div class="row-val" id="v-bounce">0.7</div></div>
     <input type="range" id="s-bounce" min="0.1" max="1.0" step="0.05" value="0.7"
       oninput="update('bounce',+this.value,'v-bounce',2)">
   </div>
 </section>
 
-<section>
-  <div class="section-title">Hand Forces</div>
+<section class="px-box">
+  <div class="section-title">&gt;&gt; HAND FORCES</div>
   <div class="slider-wrap">
-    <div class="row"><div class="row-label">Radius</div><div class="row-val" id="v-radius">110</div></div>
+    <div class="row"><div class="row-label">RADIUS</div><div class="row-val" id="v-radius">110</div></div>
     <input type="range" id="s-radius" min="40" max="220" step="5" value="110"
       oninput="update('radius',+this.value,'v-radius')">
   </div>
   <div class="slider-wrap">
-    <div class="row"><div class="row-label">Attract</div><div class="row-val" id="v-attract">3.5</div></div>
+    <div class="row"><div class="row-label">ATTRACT</div><div class="row-val" id="v-attract">3.5</div></div>
     <input type="range" id="s-attract" min="0.5" max="10" step="0.5" value="3.5"
       oninput="update('attract',+this.value,'v-attract',1)">
   </div>
   <div class="slider-wrap">
-    <div class="row"><div class="row-label">Repel</div><div class="row-val" id="v-repel">7.0</div></div>
+    <div class="row"><div class="row-label">REPEL</div><div class="row-val" id="v-repel">7.0</div></div>
     <input type="range" id="s-repel" min="1" max="16" step="0.5" value="7.0"
       oninput="update('repel',+this.value,'v-repel',1)">
   </div>
 </section>
 
-<section>
-  <div class="section-title">Visuals</div>
+<section class="px-box">
+  <div class="section-title">&gt;&gt; VISUALS</div>
   <div class="tog-row">
-    <div class="row-label">Motion Trail</div>
+    <div class="row-label">MOTION TRAIL</div>
     <button class="tog-btn on" id="tog-trail" onclick="toggleTrail(this)">ON</button>
   </div>
 </section>
 
-<section>
-  <div class="section-title">Actions</div>
+<section class="px-box">
+  <div class="section-title">&gt;&gt; ACTIONS</div>
   <div class="btn-row">
-    <button class="btn primary" onclick="send({type:'reset'})">Reset</button>
-    <button class="btn" onclick="send({type:'reset'})">Clear Best</button>
+    <button class="btn primary" onclick="send({type:'reset'})">RESET</button>
+    <button class="btn" onclick="send({type:'reset'})">CLR BEST</button>
   </div>
 </section>
 
-<div style="height:40px"></div>
+<div style="height:32px"></div>
 
 <script>
-// Zone colours for controller display
 const ZONE_COLS = {
-  stillness:   '#3070c0',
-  surge:       '#c03030',
-  convergence: '#7040b0',
-  void:        '#888888'
+  stillness:   '#7ab4e8',
+  surge:       '#e8786a',
+  convergence: '#c09ae8',
+  void:        '#a09ab0'
 };
 const ZONE_RULES = {
-  stillness:   'Fist disabled — hold still only',
-  surge:       'Repel doubled — scatter freely',
-  convergence: 'Stay within 220px of each other',
-  void:        'Field acting alone'
+  stillness:   'FIST DISABLED\nHOLD STILL ONLY',
+  surge:       'REPEL x2\nSCATTER FREELY',
+  convergence: 'STAY WITHIN\n220px OF PARTNER',
+  void:        'FIELD ACTING ALONE\nNO HANDS DETECTED'
 };
 
 let ws;
-function connect() {
-  const proto = location.protocol==='https:'?'wss:':'ws:';
-  ws = new WebSocket(proto+'//'+location.host);
-  ws.onopen = () => {
+function connect(){
+  const proto=location.protocol==='https:'?'wss:':'ws:';
+  ws=new WebSocket(proto+'//'+location.host);
+  ws.onopen=()=>{
     ws.send(JSON.stringify({type:'identify',role:'control'}));
     setConn(true);
   };
-  ws.onmessage = (e) => {
-    const msg = JSON.parse(e.data);
-
-    if (msg.type==='params') {
+  ws.onmessage=(e)=>{
+    const msg=JSON.parse(e.data);
+    if(msg.type==='params'){
       const p=msg.params;
       syncSlider('s-count',   'v-count',   p.count,    0);
       syncSlider('s-size',    'v-size',    p.size,     1);
@@ -284,65 +351,57 @@ function connect() {
       tb.textContent=p.trail?'ON':'OFF';
       tb.classList.toggle('on',p.trail);
     }
-
-    if (msg.type==='state') {
+    if(msg.type==='state'){
       const s=msg.state;
-      document.getElementById('m-hands').textContent = s.hands||0;
-      document.getElementById('m-score').textContent = s.score||0;
-      document.getElementById('m-speed').textContent = (s.avgSpeed||0).toFixed(1);
-    }
-
-    if (msg.type==='zone') {
-      const col  = ZONE_COLS[msg.zone]  || '#888';
-      const rule = ZONE_RULES[msg.zone] || '';
-      document.getElementById('zone-name').textContent     = (msg.label||msg.zone).toUpperCase();
-      document.getElementById('zone-name').style.color     = col;
-      document.getElementById('zone-desc-ctrl').textContent = msg.description||'';
-      document.getElementById('zone-rule').textContent      = rule;
-      document.getElementById('zone-box').style.borderColor = col;
-
-      const btn=document.getElementById('btn-classify');
-      btn.classList.remove('loading');
-      btn.textContent='◆ Classify Zone Now';
+      document.getElementById('m-hands').textContent=s.hands||0;
+      document.getElementById('m-score').textContent=s.score||0;
+      document.getElementById('m-speed').textContent=(s.avgSpeed||0).toFixed(1);
+      // Zone from state
+      if(s.zone){
+        const col=ZONE_COLS[s.zone]||'#a09ab0';
+        const rule=ZONE_RULES[s.zone]||'';
+        document.getElementById('zone-name').textContent=s.zone.toUpperCase();
+        document.getElementById('zone-name').style.color=col;
+        document.getElementById('zone-rule').textContent=rule;
+        document.getElementById('zone-box').style.borderColor=col;
+      }
+      // Combo name
+      if(s.comboName){
+        const cn=document.getElementById('combo-name');
+        cn.textContent=s.comboName;
+        cn.style.color='#ffe89a';
+      }
     }
   };
-  ws.onclose = () => { setConn(false); setTimeout(connect, 2000); };
+  ws.onclose=()=>{setConn(false);setTimeout(connect,2000);};
 }
 
-function setConn(on) {
+function setConn(on){
   const el=document.getElementById('conn-status');
-  el.textContent=on?'LIVE':'OFFLINE';
+  el.textContent=on?'• LIVE':'• OFFLINE';
   el.classList.toggle('live',on);
 }
 
-function update(key,value,labelId,decimals=0) {
+function update(key,value,labelId,decimals=0){
   document.getElementById(labelId).textContent=decimals>0?value.toFixed(decimals):value;
   send({type:'setParam',key,value});
 }
 
-function send(msg) {
-  if (ws&&ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify(msg));
+function send(msg){
+  if(ws&&ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify(msg));
 }
 
-function syncSlider(sliderId,labelId,value,decimals) {
-  const s=document.getElementById(sliderId);
-  const l=document.getElementById(labelId);
-  if (!s||!l) return;
+function syncSlider(sId,lId,value,decimals){
+  const s=document.getElementById(sId),l=document.getElementById(lId);
+  if(!s||!l) return;
   s.value=value;
   l.textContent=decimals>0?(+value).toFixed(decimals):value;
 }
 
-function toggleTrail(btn) {
+function toggleTrail(btn){
   const on=btn.classList.toggle('on');
   btn.textContent=on?'ON':'OFF';
   send({type:'setParam',key:'trail',value:on});
-}
-
-function triggerClassify() {
-  const btn=document.getElementById('btn-classify');
-  btn.classList.add('loading');
-  btn.textContent='... classifying';
-  send({type:'classify'});
 }
 
 connect();
