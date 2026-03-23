@@ -61,8 +61,9 @@
 //  fist   + spread = COLLISION    one cluster explodes through the other
 //  open   + open   = ORBIT        particles form a stable ring between palms
 //  fist   + open   = FEED         particles flow from open hand to fist
-//  spread + spread = NOVA         max scatter + screen flash + surge zone
+//  spread + spread = NOVA         max scatter + surge zone
 //  flick  + fist   = CATCH        flicked particles lock into fist cluster
+//  pull   + pull   = TETHER       two gravity wells stream particles between them
 // ─────────────────────────────────────────────────────────────
 
 const W = 640, H = 480;
@@ -109,6 +110,7 @@ const COMBOS = {
   'fist+open':    { name:'FEED',        col:[180,255,140], desc:'energy transfers'   },
   'spread+spread':{ name:'NOVA',        col:[255,80,120],  desc:'full scatter burst' },
   'flick+fist':   { name:'CATCH',       col:[200,160,255], desc:'particles locked'   },
+  'pull+pull':    { name:'TETHER',      col:[120,255,200], desc:'stream between hands'},
 };
 
 // Discovered combos (for legend unlock)
@@ -149,7 +151,7 @@ function fireCombo(key, combo) {
 
   if (key === 'fist+fist') {
     // SINGULARITY: everything rushes to midpoint
-    flashAlpha = 120;
+    flashAlpha = 30;
     for (let i=0; i<N; i++) {
       const dx = mx-px[i], dy = my-py[i];
       const d = Math.sqrt(dx*dx+dy*dy) + 0.1;
@@ -164,11 +166,10 @@ function fireCombo(key, combo) {
       const dx1 = hs[1].px-px[i], dy1 = hs[1].py-py[i];
       const d0 = Math.sqrt(dx0*dx0+dy0*dy0)+0.1;
       const d1 = Math.sqrt(dx1*dx1+dy1*dy1)+0.1;
-      // Attract toward both, then instantly repel
       if (d0 < P.radius*1.5) { pvx[i] += (dx0/d0)*3; pvy[i] += (dy0/d0)*3; }
       if (d1 < P.radius*1.5) { pvx[i] -= (dx1/d1)*4; pvy[i] -= (dy1/d1)*4; }
     }
-    flashAlpha = 90;
+    flashAlpha = 25;
 
   } else if (key === 'open+open') {
     // ORBIT: pull particles to midpoint, add tangential velocity for ring
@@ -176,10 +177,8 @@ function fireCombo(key, combo) {
       const dx = mx-px[i], dy = my-py[i];
       const d = Math.sqrt(dx*dx+dy*dy) + 0.1;
       if (d < P.radius*2) {
-        // Radial pull toward midpoint
         pvx[i] += (dx/d) * 1.5;
         pvy[i] += (dy/d) * 1.5;
-        // Tangential push (perpendicular)
         pvx[i] += (-dy/d) * 1.2;
         pvy[i] += ( dx/d) * 1.2;
       }
@@ -193,7 +192,6 @@ function fireCombo(key, combo) {
       const dx = openH.px-px[i], dy = openH.py-py[i];
       const d = Math.sqrt(dx*dx+dy*dy)+0.1;
       if (d < P.radius*1.8) {
-        // Pull away from open, push toward fist
         const fx = fistH.px-px[i], fy = fistH.py-py[i];
         const fd = Math.sqrt(fx*fx+fy*fy)+0.1;
         pvx[i] += (fx/fd) * 2.5;
@@ -203,15 +201,14 @@ function fireCombo(key, combo) {
     }
 
   } else if (key === 'spread+spread') {
-    // NOVA: maximum scatter from midpoint + force surge zone
-    flashAlpha = 200;
+    // NOVA: maximum scatter from midpoint + force surge zone (no full flash)
+    flashAlpha = 30;
     for (let i=0; i<N; i++) {
       const dx = px[i]-mx, dy = py[i]-my;
       const d = Math.sqrt(dx*dx+dy*dy) + 0.1;
       pvx[i] += (dx/d) * 8.0;
       pvy[i] += (dy/d) * 8.0;
     }
-    // Force surge zone for 3 seconds
     setZone('surge');
     setTimeout(() => setZone('void'), 3000);
 
@@ -227,6 +224,28 @@ function fireCombo(key, combo) {
           pvx[i] = (dx/d) * 0.5;
           pvy[i] = (dy/d) * 0.5;
         }
+      }
+    }
+
+  } else if (key === 'pull+pull') {
+    // TETHER: particles stream from each hand toward the other hand
+    // Creates a flowing river of particles between the two palms
+    for (let i=0; i<N; i++) {
+      const dx0 = hs[0].px-px[i], dy0 = hs[0].py-py[i];
+      const dx1 = hs[1].px-px[i], dy1 = hs[1].py-py[i];
+      const d0 = Math.sqrt(dx0*dx0+dy0*dy0)+0.1;
+      const d1 = Math.sqrt(dx1*dx1+dy1*dy1)+0.1;
+      // Particles near hand 0 get pulled toward hand 1
+      if (d0 < P.radius*1.6) {
+        pvx[i] += (dx1/d1) * 3.5;
+        pvy[i] += (dy1/d1) * 3.5;
+        pvx[i] *= 0.90; pvy[i] *= 0.90;
+      }
+      // Particles near hand 1 get pulled toward hand 0
+      if (d1 < P.radius*1.6) {
+        pvx[i] += (dx0/d0) * 3.5;
+        pvy[i] += (dy0/d0) * 3.5;
+        pvx[i] *= 0.90; pvy[i] *= 0.90;
       }
     }
   }
@@ -260,7 +279,7 @@ function setZone(zoneName) {
   if (zoneName === activeZone) return;
   activeZone = zoneName;
   zoneHandCol = ZONE_RGB[zoneName]?.hand || '#a09ab0';
-  flashAlpha = 60;
+  flashAlpha = 25; // kept low to avoid photosensitivity risk
   document.body.className = 'zone-' + zoneName;
   const z = ZONE_RGB[zoneName];
   const znEl = document.getElementById('zn');
@@ -317,6 +336,14 @@ const TUTORIAL_CARDS = [
     desc:   'SWIPE YOUR HAND\nQUICKLY ACROSS',
     effect: 'SENDS A SHOCKWAVE\nTHROUGH THE FIELD',
     col:    [190,150,235]
+  },
+  {
+    name:   'PULL',
+    sub:    'TWO FINGERS',
+    emoji:  '\u270C\uFE0F',  // victory/peace sign — index + middle up
+    desc:   'INDEX + MIDDLE\nFINGERS UP\nOTHERS CURLED',
+    effect: 'STRONG DIRECTED\nGRAVITY WELL',
+    col:    [120,255,200]
   },
   {
     name:   'COMBOS',
@@ -388,6 +415,8 @@ function gesture(kp,spd){
   const iDn=dn(8,5),mDn=dn(12,9),rDn=dn(16,13),pDn=dn(20,17);
   if(iDn&&mDn&&rDn&&pDn) return 'fist';
   if(iUp&&mUp&&rUp&&pUp) return abs(kp[8].x-kp[20].x)>60?'spread':'open';
+  // PULL: index + middle up, ring + pinky curled — two-finger point
+  if(iUp&&mUp&&rDn&&pDn) return 'pull';
   return 'open';
 }
 
@@ -436,6 +465,16 @@ function applyForces(){
       } else if(gact==='spread'){
         const f=P.repel*repM*max(0,1-n);
         pvx[i]-=dx*inv*f*0.18;pvy[i]-=dy*inv*f*0.18;
+      } else if(gact==='pull'){
+        // PULL: directional gravity well — stronger attraction, narrower cone
+        // Particles stream in from the direction the fingers point (upward)
+        if(dsq<R2){
+          const f=P.attract*0.9/(n*n+0.4);
+          pvx[i]+=dx*inv*f*0.09;
+          pvy[i]+=dy*inv*f*0.09;
+          pvx[i]*=0.91; pvy[i]*=0.91;
+          held++;
+        }
       } else if(gact==='flick'&&h.flickCd>0){
         if(dsq<R2*2.56){pvx[i]+=h.vx*0.20;pvy[i]+=h.vy*0.20;}
       }
@@ -547,23 +586,21 @@ function drawComboFlash(){
   comboFlash.timer--;
   const t = comboFlash.timer;
   const [cr,cg,cb] = comboFlash.col;
-  const alpha = t > 60 ? 255 : map(t,0,60,0,255);
+  // Fade based on timer: full opacity for first 30 frames, then fade out
+  const alpha = t > 60 ? 255 : map(t, 0, 60, 0, 255);
 
-  // Screen tint on fire
-  if(t > 75) {
-    noStroke(); fill(cr,cg,cb,map(t,75,90,0,80)); rect(0,0,W,H);
-  }
+  // NO full-canvas tint — just text overlay to avoid photosensitivity risk
 
   // Big combo name centred
   noStroke();
-  fill(cr,cg,cb,alpha);
-  textSize(t > 70 ? map(t,70,90,22,32) : 22);
+  fill(cr, cg, cb, alpha);
+  textSize(22);
   textAlign(CENTER);
-  text(comboFlash.name, W/2, H/2-14);
+  text(comboFlash.name, W/2, H/2 - 14);
 
-  fill(255,255,255,alpha*0.6);
+  fill(255, 255, 255, alpha * 0.55);
   textSize(7);
-  text(comboFlash.desc, W/2, H/2+6);
+  text(comboFlash.desc, W/2, H/2 + 6);
 }
 
 // ── PIXEL BOX + HUD ───────────────────────────────────────────
@@ -616,6 +653,14 @@ function drawHUD(){
       fill(c.col[0],c.col[1],c.col[2]);
       text(c.name,W-124,H-bh2+14+i*12);
     });
+  } else {
+    // Show gesture guide when no combos found yet
+    pixelBox(W-116,H-70,108,62,AMBER,DARK);
+    fill(AMBER[0],AMBER[1],AMBER[2]);textSize(5);textAlign(LEFT);
+    text('\u270A  SQUEEZE',W-110,H-56);
+    text('\uD83D\uDD90  HOLD',   W-110,H-44);
+    text('\uD83D\uDD96  REPEL',  W-110,H-32);
+    text('\u270C  PULL',   W-110,H-20);
   }
 
   // Field at rest label when void
@@ -651,7 +696,7 @@ function drawTutorial(){
 
   // Progress dots (5 cards now)
   for(let d=0;d<TUTORIAL_CARDS.length;d++){
-    const dx=W/2-24+d*12, dy=56; noStroke();
+    const dx=W/2-30+d*12, dy=56; noStroke();
     fill(d===tutorialCard?AMBER[0]:80, d===tutorialCard?AMBER[1]:70, d===tutorialCard?AMBER[2]:60);
     rect(dx,dy,8,8);
   }
@@ -697,9 +742,9 @@ function drawTutorial(){
   // If combo hint card, show a few examples
   if(card.isComboHint){
     fill(255,220,100,160);textSize(5);
-    text('\u270A + \u270A  =  SINGULARITY',W/2,by+256);
-    text('\uD83D\uDD90 + \uD83D\uDD90  =  ORBIT',W/2,by+268);
-    text('\u270A + \uD83D\uDD90  =  FEED',W/2,by+280);
+    text('\u270A + \u270A  =  SINGULARITY',W/2,by+252);
+    text('\uD83D\uDD90 + \uD83D\uDD90  =  ORBIT',W/2,by+264);
+    text('\u270C + \u270C  =  TETHER',W/2,by+276);
   }
 
   // Progress bar
@@ -756,7 +801,7 @@ function draw(){
   if(flashAlpha>0){
     const tgt=ZONE_RGB[activeZone]||ZONE_RGB.void;
     noStroke();fill(tgt.r,tgt.g,tgt.b,flashAlpha);rect(0,0,W,H);
-    flashAlpha=max(0,flashAlpha-5);
+    flashAlpha=max(0,flashAlpha-2);
   }
 
   updateHands();
