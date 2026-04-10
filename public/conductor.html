@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SQUISH — CONDUCTOR</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+<script src="https://unpkg.com/ml5@1/dist/ml5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --dark:#05020f; --amber:#e8d5a3; --dim:#7a6030;
+    --cyan:#50d2ff; --pink:#ff64b4; --gold:#ffd250; --green:#64ffa0;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;image-rendering:pixelated;}
+  html,body{
+    width:100%;height:100%;background:var(--dark);
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;font-family:'Press Start 2P',monospace;
+  }
+  body::before{
+    content:'';position:fixed;inset:0;pointer-events:none;z-index:300;
+    background:repeating-linear-gradient(0deg,transparent,transparent 3px,
+      rgba(0,0,0,0.08) 3px,rgba(0,0,0,0.08) 4px);
+  }
+  body::after{
+    content:'';position:fixed;inset:0;pointer-events:none;z-index:299;
+    background:radial-gradient(ellipse at center,transparent 48%,rgba(0,0,0,0.72) 100%);
+  }
+  .wrap{
+    position:relative;
+    border:3px solid var(--amber);
+    box-shadow:inset 0 0 0 1px var(--dim),
+               0 0 60px rgba(232,213,163,0.05),10px 10px 0 #010008;
+  }
+  canvas{
+    display:block;
+    max-width:calc(100vw - 24px);max-height:calc(100vh - 24px);
+    width:auto!important;height:auto!important;aspect-ratio:640/480;
+  }
+
+  /* ── PICKER OVERLAY ──────────────────────────────────── */
+  #picker{
+    position:absolute;inset:0;z-index:100;
+    background:rgba(5,2,15,0.97);
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:0;
+    transition:opacity 0.35s;
+  }
+  #picker.hidden{opacity:0;pointer-events:none;}
+
+  #ptitle{
+    font-size:11px;color:var(--amber);letter-spacing:2px;
+    margin-bottom:24px;text-align:center;line-height:2;
+  }
+
+  #ptabs{display:flex;gap:0;margin-bottom:0;}
+  .ptab{
+    font-family:'Press Start 2P',monospace;font-size:7px;
+    color:var(--dim);background:transparent;
+    border:1px solid var(--dim);padding:8px 18px;
+    cursor:pointer;transition:all .15s;letter-spacing:1px;
+  }
+  .ptab:first-child{border-right:none;}
+  .ptab.on{color:var(--amber);border-color:var(--amber);background:rgba(232,213,163,0.05);}
+  .ptab:hover:not(.on){color:var(--amber);border-color:rgba(232,213,163,0.35);}
+
+  #ppanel{
+    border:1px solid var(--amber);border-top:none;
+    width:420px;min-height:268px;
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+    padding:26px 22px;background:rgba(232,213,163,0.018);
+    position:relative;
+  }
+
+  /* QR tab */
+  #tqr{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;}
+  #qrbox{background:#fff;padding:8px;border:2px solid var(--amber);}
+  #qrinstr{font-size:6px;color:var(--dim);text-align:center;line-height:2;}
+  #qrstatus{font-size:6px;color:var(--gold);text-align:center;min-height:12px;
+            animation:blink 1.1s step-end infinite;}
+  @keyframes blink{50%{opacity:0;}}
+
+  /* File tab */
+  #tfile{display:flex;flex-direction:column;align-items:center;gap:14px;width:100%;}
+  #dropzone{
+    width:100%;height:108px;border:2px dashed var(--dim);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:8px;cursor:pointer;transition:border-color .2s,background .2s;position:relative;
+  }
+  #dropzone:hover,#dropzone.on{border-color:var(--amber);background:rgba(232,213,163,0.04);}
+  #dropzone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+  #droplabel{font-size:7px;color:var(--dim);text-align:center;line-height:2;pointer-events:none;}
+  #droplabel b{color:var(--amber);font-weight:normal;}
+  #filestatus{font-size:6px;color:var(--gold);text-align:center;min-height:12px;}
+
+  /* Start button */
+  #gobtn{
+    font-family:'Press Start 2P',monospace;font-size:8px;
+    color:var(--dark);background:var(--amber);
+    border:none;padding:10px 28px;cursor:pointer;
+    letter-spacing:1px;display:none;margin-top:10px;
+    box-shadow:3px 3px 0 var(--dim);transition:transform .1s,box-shadow .1s;
+  }
+  #gobtn.on{display:block;}
+  #gobtn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--dim);}
+  #gobtn:active{transform:translate(1px,1px);box-shadow:2px 2px 0 var(--dim);}
+
+  #camwarn{position:absolute;bottom:12px;font-size:5px;color:var(--gold);text-align:center;width:100%;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ── SONG PICKER ──────────────────────────────────── -->
+  <div id="picker">
+    <div id="ptitle">
+      SQUISH CONDUCTOR<br>
+      <span style="font-size:6px;color:var(--dim);letter-spacing:1px">choose a song — your body conducts it</span>
+    </div>
+
+    <div id="ptabs">
+      <button class="ptab on" onclick="switchTab('qr')">QR UPLOAD</button>
+      <button class="ptab"    onclick="switchTab('file')">FILE DROP</button>
+    </div>
+
+    <div id="ppanel">
+      <!-- QR TAB -->
+      <div id="tqr">
+        <div id="qrbox"></div>
+        <div id="qrinstr">SCAN WITH YOUR PHONE<br>SELECT ANY MP3 / WAV / OGG<br>TRANSFERS OVER LOCAL WIFI</div>
+        <div id="qrstatus">GENERATING QR...</div>
+      </div>
+
+      <!-- FILE TAB -->
+      <div id="tfile" style="display:none">
+        <div id="dropzone">
+          <input type="file" id="fileinput" accept="audio/*">
+          <div id="droplabel">DROP MP3 / WAV / OGG HERE<br>OR <b>CLICK TO BROWSE</b></div>
+        </div>
+        <div id="filestatus"></div>
+      </div>
+
+      <button id="gobtn" onclick="startConductor()">&#9654; CONDUCT</button>
+      <div id="camwarn"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ────────────────────────────────────────────────────────────
+     NOTE ON QR UPLOAD:
+     The QR tab needs two routes on your Express server:
+
+       GET  /upload          → serve the phone upload page (HTML below)
+       POST /upload          → receive audio, store in memory, notify SSE clients
+       GET  /upload-events   → SSE stream, pushes "ready" when file arrives
+       GET  /upload-file     → serve the uploaded audio buffer
+       GET  /local-ip        → return { ip: "192.168.x.x" }
+
+     Minimal server.js additions needed — see bottom of this file.
+     If those routes are absent the QR tab degrades gracefully
+     and shows the URL — file drop tab always works without server.
+──────────────────────────────────────────────────────────────── -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  SQUISH — CONDUCTOR  (Particle Edition)
+//
+//  The SAME energy value that controls the audio filter bands
+//  also governs the particle field — they are one system.
+//
+//  ARM SPAN   (wrist-to-wrist distance)
+//    → LOW band gain (bass)
+//    → Particle gravity (wide = spread, close = cluster)
+//    → Wrist attractor becomes repeller when arms open
+//
+//  ARM HEIGHT (wrist Y relative to shoulders)
+//    → MID band gain (melody)
+//    → Particle spawn rate
+//    → Elbow attractors strengthen
+//
+//  OPENNESS   (span × height blend)
+//    → HIGH band gain (air/shimmer)
+//    → Particle max speed
+//    → Particle colour saturation
+//
+// ═══════════════════════════════════════════════════════════════
+
+const W=640, H=480;
+const DARK =[5,2,15];
+const AMBER=[232,213,163];
+const CYAN =[80,210,255];
+const PINK =[255,100,180];
+const GOLD =[255,210,80];
+const GREEN=[100,255,160];
+
+// ── AUDIO ─────────────────────────────────────────────────────
+let audioCtx,songBuffer,sourceNode,masterGain,compressor,analyser,freqData;
+let songLoaded=false, songPlaying=false, songStart=0;
+
+const bands={
+  low: {filter:null,gain:null,smooth:1,target:1},
+  mid: {filter:null,gain:null,smooth:1,target:1},
+  high:{filter:null,gain:null,smooth:.7,target:.7},
+};
+let energy={low:0,mid:0,high:0};
+
+function initAudio(){
+  audioCtx  =new(window.AudioContext||window.webkitAudioContext)();
+  compressor=audioCtx.createDynamicsCompressor();
+  compressor.threshold.value=-12; compressor.ratio.value=3;
+  compressor.attack.value=.004;   compressor.release.value=.18;
+  masterGain=audioCtx.createGain(); masterGain.gain.value=.88;
+  analyser  =audioCtx.createAnalyser(); analyser.fftSize=512;
+  freqData  =new Uint8Array(analyser.frequencyBinCount);
+  compressor.connect(masterGain);
+  masterGain.connect(analyser);
+  analyser.connect(audioCtx.destination);
+
+  const mkBand=(type,freq,Q,gainVal)=>{
+    const f=audioCtx.createBiquadFilter();
+    f.type=type; f.frequency.value=freq; f.Q.value=Q;
+    const g=audioCtx.createGain(); g.gain.value=gainVal;
+    f.connect(g); g.connect(compressor);
+    return{filter:f,gain:g,smooth:gainVal,target:gainVal};
+  };
+  Object.assign(bands.low,  mkBand('lowpass', 280,.7,1));
+  Object.assign(bands.mid,  mkBand('bandpass',2200,.55,1));
+  Object.assign(bands.high, mkBand('highpass',5500,.5,.7));
+}
+
+function playSong(){
+  if(!audioCtx||!songBuffer)return;
+  if(sourceNode){try{sourceNode.stop();}catch(e){}}
+  sourceNode=audioCtx.createBufferSource();
+  sourceNode.buffer=songBuffer;
+  sourceNode.connect(bands.low.filter);
+  sourceNode.connect(bands.mid.filter);
+  sourceNode.connect(bands.high.filter);
+  sourceNode.start(0);
+  songStart=audioCtx.currentTime; songPlaying=true;
+  sourceNode.onended=()=>{songPlaying=false;};
+}
+
+function applyEnergy(){
+  if(!audioCtx)return;
+  const now=audioCtx.currentTime;
+  for(const b of['low','mid','high']){
+    bands[b].smooth+=(energy[b]-bands[b].smooth)*.07;
+    bands[b].gain.gain.setTargetAtTime(Math.max(.001,bands[b].smooth),now,.06);
+  }
+}
+
+function getSongProgress(){
+  if(!songPlaying||!songBuffer)return 0;
+  return Math.min((audioCtx.currentTime-songStart)/songBuffer.duration,1);
+}
+
+function getFreqAt(band){
+  if(!analyser||!freqData)return 0;
+  analyser.getByteFrequencyData(freqData);
+  const len=freqData.length;
+  let s,e;
+  if(band==='low'){s=0;e=int(len*.08);}
+  else if(band==='mid'){s=int(len*.08);e=int(len*.35);}
+  else{s=int(len*.35);e=int(len*.7);}
+  let sum=0;
+  for(let i=s;i<e;i++)sum+=freqData[i];
+  return constrain(sum/((e-s)*255),0,1);
+}
+
+// ── AUDIO LOADING ────────────────────────────────────────────
+function loadAudioBuffer(arrayBuffer){
+  initAudio();
+  audioCtx.decodeAudioData(arrayBuffer.slice(0))
+    .then(buf=>{
+      songBuffer=buf; songLoaded=true;
+      document.getElementById('gobtn').classList.add('on');
+      setFileStatus('READY — '+fmtDur(buf.duration));
+      setQRStatus('READY TO CONDUCT \u2193');
+    })
+    .catch(()=>setFileStatus('DECODE ERROR — TRY ANOTHER FILE',true));
+}
+
+function fmtDur(s){const m=int(s/60);return m+':'+nf(int(s%60),2);}
+
+// ── QR UPLOAD ─────────────────────────────────────────────────
+// Needs /local-ip, /upload-events, /upload-file routes on server.
+// Degrades gracefully if not present.
+
+function buildQR(){
+  fetch('/local-ip').then(r=>r.json()).then(d=>makeQR(`http://${d.ip}:3000/upload`))
+    .catch(()=>makeQR(`http://localhost:3000/upload`));
+}
+
+function makeQR(url){
+  const box=document.getElementById('qrbox');
+  box.innerHTML='';
+  try{
+    new QRCode(box,{text:url,width:128,height:128,
+      colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M});
+  }catch(e){
+    box.innerHTML=`<div style="font-size:5px;color:#e8d5a3;padding:8px;max-width:160px;word-break:break-all">${url}</div>`;
+  }
+  setQRStatus('WAITING FOR PHONE UPLOAD...');
+  listenForUpload();
+}
+
+function listenForUpload(){
+  try{
+    const es=new EventSource('/upload-events');
+    es.onmessage=ev=>{
+      if(ev.data==='ready'){
+        setQRStatus('FILE RECEIVED — LOADING...');
+        fetch('/upload-file').then(r=>r.arrayBuffer()).then(buf=>{
+          loadAudioBuffer(buf);
+        }).catch(()=>setQRStatus('FETCH ERROR'));
+      }
+    };
+    es.onerror=()=>setQRStatus('USE FILE DROP TAB \u2192');
+  }catch(e){}
+}
+
+function setQRStatus(m){const el=document.getElementById('qrstatus');if(el)el.textContent=m;}
+function setFileStatus(m,err=false){
+  const el=document.getElementById('filestatus');
+  if(el){el.textContent=m;el.style.color=err?'#ff6050':'var(--gold)';}
+}
+
+// ── FILE DROP ─────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',()=>{
+  buildQR();
+
+  const fi=document.getElementById('fileinput');
+  const dz=document.getElementById('dropzone');
+
+  fi.addEventListener('change',e=>{if(e.target.files[0])handleFile(e.target.files[0]);});
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('on');});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('on'));
+  dz.addEventListener('drop',e=>{
+    e.preventDefault();dz.classList.remove('on');
+    if(e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0]);
+  });
+});
+
+function handleFile(file){
+  if(!file.type.startsWith('audio/')&&!file.name.match(/\.(mp3|wav|ogg|flac|aac|m4a)$/i)){
+    setFileStatus('NOT AN AUDIO FILE',true);return;
+  }
+  setFileStatus('LOADING '+file.name+'...');
+  document.getElementById('droplabel').style.opacity='0.3';
+  const r=new FileReader();
+  r.onload=e=>loadAudioBuffer(e.target.result);
+  r.onerror=()=>setFileStatus('READ ERROR',true);
+  r.readAsArrayBuffer(file);
+}
+
+function switchTab(t){
+  document.querySelectorAll('.ptab').forEach((el,i)=>
+    el.classList.toggle('on',(i===0&&t==='qr')||(i===1&&t==='file')));
+  document.getElementById('tqr').style.display  =t==='qr'  ?'flex':'none';
+  document.getElementById('tfile').style.display=t==='file'?'flex':'none';
+}
+
+function startConductor(){
+  if(!songLoaded)return;
+  document.getElementById('picker').classList.add('hidden');
+  playSong();
+  gameState='playing';
+}
+
+// ── BODY POSE ─────────────────────────────────────────────────
+let bodyPose,video;
+let poses=[],ready=false;
+let skp=[{},{}]; // smoothed keypoints per player
+const KSM=0.22;
+
+function preload(){
+  bodyPose=ml5.bodyPose('MoveNet',{
+    modelType:'SINGLEPOSE_LIGHTNING',enableSmoothing:true,minPoseScore:.15
+  });
+}
+
+function setup(){
+  const cnv=createCanvas(W,H);
+  cnv.parent(document.querySelector('.wrap'));
+  colorMode(RGB,255); noSmooth(); textFont('monospace');
+
+  video=createCapture(VIDEO);
+  video.size(W,H); video.hide();
+
+  bodyPose.detectStart(video,res=>{poses=res;ready=true;updateKP();});
+
+  navigator.mediaDevices.getUserMedia({video:true}).catch(()=>{
+    document.getElementById('camwarn').textContent='CAMERA ACCESS REQUIRED';
+  });
+
+  initParticles();
+}
+
+function updateKP(){
+  for(let i=0;i<Math.min(poses.length,2);i++){
+    const p=poses[i];
+    if(!p||!p.keypoints)continue;
+    for(const pt of p.keypoints){
+      if(!pt||pt.confidence<.15)continue;
+      const n=pt.name;
+      if(!skp[i][n])skp[i][n]={x:pt.x,y:pt.y,c:pt.confidence};
+      else{
+        skp[i][n].x=lerp(skp[i][n].x,pt.x,KSM);
+        skp[i][n].y=lerp(skp[i][n].y,pt.y,KSM);
+        skp[i][n].c=pt.confidence;
+      }
+    }
+  }
+}
+
+// ── POSE → ENERGY ─────────────────────────────────────────────
+function poseEnergy(kp){
+  const lw=kp['left_wrist'],rw=kp['right_wrist'];
+  const ls=kp['left_shoulder'],rs=kp['right_shoulder'];
+  const lh=kp['left_hip'],rh=kp['right_hip'];
+  if(!lw||!rw)return null;
+  const span=dist(lw.x,lw.y,rw.x,rw.y);
+  const low =constrain(map(span,W*.08,W*.82,0,1),0,1);
+  const sY  =(ls&&rs)?(ls.y+rs.y)*.5:H*.33;
+  const hY  =(lh&&rh)?(lh.y+rh.y)*.5:H*.65;
+  const wY  =(lw.y+rw.y)*.5;
+  const mid =constrain(map(wY,hY,sY-50,0,1),0,1);
+  const high=constrain(low*.6+mid*.4,0,1);
+  return{low,mid,high};
+}
+
+function computeEnergy(){
+  const n=Math.min(poses?poses.length:0,2);
+  if(!n){energy.low=.02;energy.mid=.02;energy.high=.02;return;}
+  let sl=0,sm=0,sh=0,cnt=0;
+  for(let i=0;i<n;i++){
+    const e=poseEnergy(skp[i]);
+    if(!e)continue;
+    sl+=e.low;sm+=e.mid;sh+=e.high;cnt++;
+  }
+  if(!cnt)return;
+  energy.low=sl/cnt;energy.mid=sm/cnt;energy.high=sh/cnt;
+}
+
+// ── PARTICLES ─────────────────────────────────────────────────
+// The particle field is the primary visual.
+// Attractors are built from keypoints using the same energy
+// mapping as the audio — one model, two outputs.
+
+const MAXP=220;
+let particles=[];
+let attractors=[];
+
+function initParticles(){
+  particles=[];
+  for(let i=0;i<MAXP;i++)particles.push(mkParticle());
+}
+
+function mkParticle(ox,oy){
+  const bands=['low','mid','high'];
+  return{
+    x:ox??random(W), y:oy??random(H),
+    vx:random(-0.6,0.6), vy:random(-0.6,0.6),
+    band:random(bands),
+    sz:random(1.5,4.5),
+    age:random(120),
+  };
+}
+
+function buildAttractors(){
+  attractors=[];
+  const pc=Math.min(poses?poses.length:0,2);
+  for(let pi=0;pi<pc;pi++){
+    const kp=skp[pi];
+    const e=poseEnergy(kp);
+    if(!e)continue;
+
+    // Wrists: wide arms → repel (particles scatter like bass opens)
+    //         close arms → attract (particles cluster like sound tightens)
+    const wf=lerp(.55,-.45,e.low);
+    for(const n of['left_wrist','right_wrist']){
+      const pt=kp[n];
+      if(pt&&pt.c>.2)attractors.push({x:pt.x,y:pt.y,force:wf,band:'low'});
+    }
+    // Elbows: mid energy controls pull strength
+    const ef=lerp(.25,-.18,e.mid);
+    for(const n of['left_elbow','right_elbow']){
+      const pt=kp[n];
+      if(pt&&pt.c>.2)attractors.push({x:pt.x,y:pt.y,force:ef,band:'mid'});
+    }
+    // Shoulders: gentle attract, high band
+    for(const n of['left_shoulder','right_shoulder']){
+      const pt=kp[n];
+      if(pt&&pt.c>.2)attractors.push({x:pt.x,y:pt.y,force:.12,band:'high'});
+    }
+    // Hip centre: bass anchor
+    const lh=kp['left_hip'],rh=kp['right_hip'];
+    if(lh&&rh)attractors.push({x:(lh.x+rh.x)*.5,y:(lh.y+rh.y)*.5,force:.08,band:'low'});
+  }
+}
+
+function updateParticles(){
+  const tot=(energy.low+energy.mid+energy.high)/3;
+
+  // Spawn near attractors proportional to mid energy
+  const rate=int(energy.mid*5);
+  for(let s=0;s<rate&&particles.length<MAXP;s++){
+    if(attractors.length>0){
+      const a=attractors[int(random(attractors.length))];
+      particles.push(mkParticle(a.x+random(-35,35),a.y+random(-35,35)));
+    }else particles.push(mkParticle());
+  }
+
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.age++;
+
+    // Attractor forces
+    for(const a of attractors){
+      const dx=a.x-p.x, dy=a.y-p.y;
+      const d=Math.sqrt(dx*dx+dy*dy)+1;
+      if(d>220)continue;
+      const be=energy[a.band]??tot;
+      const f=(a.force*be*.45)/(d*.75);
+      p.vx+=(dx/d)*f; p.vy+=(dy/d)*f;
+    }
+
+    // Centre gravity — weakens as arms open (low energy up)
+    const grav=(1-energy.low)*.014;
+    p.vx+=(W*.5-p.x)*grav; p.vy+=(H*.5-p.y)*grav;
+
+    // Damping — less damping = more chaotic at high energy
+    const damp=.91+tot*.065;
+    p.vx*=damp; p.vy*=damp;
+
+    // Speed cap rises with high energy (air band)
+    const maxSpd=1.8+energy.high*7;
+    const spd=Math.sqrt(p.vx*p.vx+p.vy*p.vy);
+    if(spd>maxSpd){p.vx=p.vx/spd*maxSpd;p.vy=p.vy/spd*maxSpd;}
+
+    p.x+=p.vx; p.y+=p.vy;
+    if(p.x<0)p.x=W; if(p.x>W)p.x=0;
+    if(p.y<0)p.y=H; if(p.y>H)p.y=0;
+
+    // Colour from band + live audio frequency data
+    const fq=getFreqAt(p.band);
+    let cr,cg,cb;
+    if(p.band==='low'){
+      // Bass → deep blue to electric blue
+      cr=int(lerp(30, 80,energy.low));
+      cg=int(lerp(30,200,energy.low));
+      cb=int(lerp(100,255,energy.low));
+    }else if(p.band==='mid'){
+      // Mid → amber to gold
+      cr=int(lerp(80,232,energy.mid));
+      cg=int(lerp(55,213,energy.mid));
+      cb=int(lerp(20, 80,energy.mid));
+    }else{
+      // High → dark pink to hot pink
+      cr=int(lerp(80,255,energy.high));
+      cg=int(lerp(30, 90,energy.high));
+      cb=int(lerp(80,190,energy.high));
+    }
+
+    // Alpha: age fade + audio pulse
+    const ageFade=constrain(map(p.age,0,90,0,1),0,1);
+    const alpha  =int(ageFade*(55+fq*165));
+
+    noStroke(); fill(cr,cg,cb,alpha);
+    const sz=p.sz*(1+fq*.7);
+    rect(int(p.x-sz/2),int(p.y-sz/2),int(sz),int(sz));
+  }
+
+  while(particles.length>MAXP)particles.shift();
+}
+
+// ── SKELETON ──────────────────────────────────────────────────
+const BONES=[
+  ['left_shoulder','right_shoulder'],
+  ['left_shoulder','left_elbow'],  ['left_elbow','left_wrist'],
+  ['right_shoulder','right_elbow'],['right_elbow','right_wrist'],
+  ['left_shoulder','left_hip'],    ['right_shoulder','right_hip'],
+  ['left_hip','right_hip'],
+  ['left_hip','left_knee'],        ['left_knee','left_ankle'],
+  ['right_hip','right_knee'],      ['right_knee','right_ankle'],
+  ['nose','left_shoulder'],        ['nose','right_shoulder'],
+];
+
+function drawSkeleton(kp,e){
+  if(!e)return;
+  const ba=int(40+e.low*90);
+  stroke(AMBER[0],AMBER[1],AMBER[2],ba); strokeWeight(1);
+  for(const[a,b]of BONES){
+    const pa=kp[a],pb=kp[b];
+    if(!pa||!pb||pa.c<.15||pb.c<.15)continue;
+    line(int(pa.x),int(pa.y),int(pb.x),int(pb.y));
+  }
+  // Wrist glows
+  const wa=int(80+e.low*170);
+  noStroke();
+  const drawWrist=(n,cr,cg,cb)=>{
+    const pt=kp[n]; if(!pt||pt.c<.2)return;
+    fill(cr,cg,cb,wa); rect(int(pt.x)-5,int(pt.y)-5,10,10);
+    // Ring scales with energy
+    noFill(); stroke(cr,cg,cb,int(e.low*70)); strokeWeight(1);
+    const r=14+e.low*22;
+    rect(int(pt.x-r/2),int(pt.y-r/2),int(r),int(r));
+    noStroke();
+  };
+  drawWrist('left_wrist', 80,200,255);
+  drawWrist('right_wrist',255,100,180);
+}
+
+function drawSpanArc(kp,e){
+  const lw=kp['left_wrist'],rw=kp['right_wrist'];
+  if(!lw||!rw)return;
+  const mx=(lw.x+rw.x)*.5, my=(lw.y+rw.y)*.5-18;
+  const r=dist(lw.x,lw.y,rw.x,rw.y)*.5;
+  if(r<14)return;
+  noFill(); drawingContext.setLineDash([3,5]);
+  stroke(AMBER[0],AMBER[1],AMBER[2],int(e.low*55)); strokeWeight(1);
+  arc(mx,my,r*2,r*.9,0,PI);
+  drawingContext.setLineDash([]); noStroke();
+}
+
+// ── HUD ───────────────────────────────────────────────────────
+function pxBox(x,y,w,h){
+  noStroke(); fill(DARK[0]+5,DARK[1]+2,DARK[2]+18,215); rect(x,y,w,h);
+  noFill(); stroke(AMBER[0],AMBER[1],AMBER[2],55); strokeWeight(1); rect(x,y,w,h); noStroke();
+}
+
+function drawBars(){
+  const bw=10,bh=58,gap=5,bx=14,by=H-78;
+  const cfg=[
+    {k:'low', col:[80,200,255],lbl:'B'},
+    {k:'mid', col:AMBER,       lbl:'M'},
+    {k:'high',col:[255,100,180],lbl:'A'},
+  ];
+  for(let i=0;i<3;i++){
+    const{k,col,lbl}=cfg[i];
+    const x=bx+i*(bw+gap);
+    const v=constrain(bands[k].smooth,0,1);
+    const fh=int(v*bh);
+    noStroke(); fill(15,10,28); rect(x,by,bw,bh);
+    fill(col[0],col[1],col[2],200); rect(x,by+bh-fh,bw,fh);
+    noFill(); stroke(col[0],col[1],col[2],45); strokeWeight(1); rect(x,by,bw,bh);
+    noStroke(); fill(col[0],col[1],col[2],110);
+    textSize(5); textAlign(CENTER); text(lbl,x+bw/2,by+bh+9);
+  }
+}
+
+function drawWave(){
+  if(!analyser||!songPlaying)return;
+  analyser.getByteTimeDomainData(freqData);
+  const wx=W/2-110,wy=H-35,ww=220,wh=22;
+  noFill(); stroke(AMBER[0],AMBER[1],AMBER[2],28); strokeWeight(1); rect(wx,wy,ww,wh);
+  stroke(AMBER[0],AMBER[1],AMBER[2],120); strokeWeight(1);
+  const step=ww/freqData.length;
+  for(let i=0;i<freqData.length-1;i++){
+    line(int(wx+i*step),int(wy+map(freqData[i],0,255,wh,0)),
+         int(wx+(i+1)*step),int(wy+map(freqData[i+1],0,255,wh,0)));
+  }
+  noStroke();
+}
+
+function drawProgress(){
+  const prog=getSongProgress();
+  if(!prog&&!songPlaying)return;
+  const px=54,py=H-12,pw=W-108;
+  noStroke(); fill(15,10,28); rect(px,py,pw,6);
+  fill(AMBER[0],AMBER[1],AMBER[2],125); rect(px,py,int(pw*prog),6);
+  noFill(); stroke(AMBER[0],AMBER[1],AMBER[2],38); strokeWeight(1); rect(px,py,pw,6);
+  noStroke();
+  if(songBuffer){
+    const s=int(audioCtx.currentTime-songStart);
+    fill(AMBER[0],AMBER[1],AMBER[2],65); textSize(5); textAlign(LEFT);
+    text(int(s/60)+':'+nf(s%60,2),px,py-2);
+  }
+}
+
+function drawHUD(){
+  pxBox(8,8,182,20);
+  fill(AMBER[0],AMBER[1],AMBER[2]); textSize(6); textAlign(LEFT);
+  text('SQUISH  CONDUCTOR',13,21);
+
+  const pc=Math.min(poses?poses.length:0,2);
+  pxBox(W-88,8,80,20);
+  fill(pc>0?GREEN[0]:60,pc>0?GREEN[1]:60,pc>0?GREEN[2]:60);
+  textSize(5); textAlign(CENTER);
+  text(pc+(pc===1?' BODY':' BODIES'),W-48,21);
+
+  drawBars(); drawWave(); drawProgress();
+
+  if(!pc){
+    fill(AMBER[0],AMBER[1],AMBER[2],130); textSize(8); textAlign(CENTER);
+    text('STEP INTO FRAME',W/2,H/2-10);
+    fill(160,140,100,100); textSize(6);
+    text('spread your arms to open the sound',W/2,H/2+10);
+  }
+
+  fill(AMBER[0],AMBER[1],AMBER[2],38); textSize(5); textAlign(LEFT);
+  text('ESC \u2192 NEW SONG',14,H-3);
+}
+
+// ── STATE + MAIN LOOP ─────────────────────────────────────────
+let gameState='picker';
+
+function draw(){
+  if(gameState!=='playing'){background(DARK[0],DARK[1],DARK[2]);return;}
+
+  if(poses&&poses.length>0)updateKP();
+  computeEnergy();
+  applyEnergy();
+  buildAttractors();
+
+  // Ghost trail
+  noStroke(); fill(DARK[0],DARK[1],DARK[2],50); rect(0,0,W,H);
+
+  // Particles first (behind skeleton)
+  updateParticles();
+
+  // Skeleton per player
+  const pc=Math.min(poses?poses.length:0,2);
+  for(let pi=0;pi<pc;pi++){
+    const kp=skp[pi], e=poseEnergy(kp);
+    if(e){drawSkeleton(kp,e); drawSpanArc(kp,e);}
+  }
+
+  drawHUD();
+}
+
+function keyPressed(){
+  if(keyCode===ESCAPE&&gameState==='playing'){
+    gameState='picker';
+    document.getElementById('picker').classList.remove('hidden');
+    document.getElementById('gobtn').classList.remove('on');
+    document.getElementById('filestatus').textContent='';
+    document.getElementById('droplabel').style.opacity='1';
+    document.getElementById('fileinput').value='';
+    if(sourceNode){try{sourceNode.stop();}catch(e){}}
+    songPlaying=false; songLoaded=false; songBuffer=null;
+    energy={low:.02,mid:.02,high:.02};
+    particles=[]; initParticles();
+    buildQR(); // refresh QR for next session
+  }
+}
+</script>
+</body>
+</html>
