@@ -127,20 +127,6 @@ The single location block handles both HTTP and WebSocket upgrade traffic, which
 
 ---
 
-## AI narrator
-
-The server watches the live field state (how many hands are active, what gestures they are doing, how many particles are being held, average particle speed) and calls llama3.2 every 6 seconds when the field is active. The model is prompted to generate a single atmospheric caption of no more than 9 words. Something like:
-
-> two hands pulling the same field apart
-
-> everything scatters and reconvenes
-
-> the field remembers the shape of your grip
-
-These appear as fading text at the bottom of the installation canvas. The idea is that the AI is not controlling the visuals directly but narrating what it observes, adding a layer of poetic interpretation to the physical interaction.
-
----
-
 ## Context and theory
 
 This project sits within a broader body of work looking at cooperative embodied play in installation contexts. The cooperative scoring mechanic (shared hold count rather than individual scores) is intentionally designed to avoid competition, drawing on Caillois's distinction between agonistic and mimetic play. The absence of instructions on the display screen is also deliberate: gesture discovery through exploration is more interesting than following a legend.
